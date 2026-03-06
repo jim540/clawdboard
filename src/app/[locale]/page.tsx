@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
 import { cachedAuth } from "@/lib/auth";
