@@ -178,10 +178,7 @@ export default async function UserProfilePage({
   const profileUrl = `${baseUrl}/user/${encodeURIComponent(user.githubUsername ?? username)}`;
 
   // Transform data for chart components (server-side)
-  // When period is "today", show 7-day context so the chart isn't a single dot
-  const chartSource = period === "today" ? allDailyData.slice(-7) : filteredDailyData;
-  const chartPeriod = period === "today" ? "7d" : period;
-  const usageChartData = chartSource.map((row) => ({
+  const usageChartData = filteredDailyData.map((row) => ({
     date: row.date ?? "",
     cost: Number(row.totalCost ?? 0),
     tokens:
@@ -308,7 +305,7 @@ export default async function UserProfilePage({
             isOwner={isOwner}
           />
 
-          <UsageChart data={usageChartData} period={chartPeriod} range={period === "today" ? undefined : range} />
+          <UsageChart data={usageChartData} period={period} range={range} />
 
           <ModelBreakdown data={modelBreakdownData} />
         </main>

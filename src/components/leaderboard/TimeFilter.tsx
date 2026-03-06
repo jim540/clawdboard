@@ -43,8 +43,7 @@ function TimeFilterInner({ current, from, to }: TimeFilterProps) {
   const [popoverPos, setPopoverPos] = useState({ top: 0, right: 0, fullWidth: false });
 
   const today = new Date().toISOString().slice(0, 10);
-  const defaultFrom = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
-  const [pickFrom, setPickFrom] = useState(from ?? defaultFrom);
+  const [pickFrom, setPickFrom] = useState(from ?? today);
   const [pickTo, setPickTo] = useState(to ?? today);
 
   // Reset picker values when props change (inline derived state, no useEffect)
@@ -52,7 +51,7 @@ function TimeFilterInner({ current, from, to }: TimeFilterProps) {
   const [prevPropsKey, setPrevPropsKey] = useState(propsKey);
   if (propsKey !== prevPropsKey) {
     setPrevPropsKey(propsKey);
-    setPickFrom(from ?? defaultFrom);
+    setPickFrom(from ?? today);
     setPickTo(to ?? today);
   }
 

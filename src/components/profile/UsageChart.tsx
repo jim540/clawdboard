@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -132,6 +134,39 @@ function formatTokensCompact(value: number): string {
   }).format(value);
 }
 
+const COST_COLOR = "#F9A615";
+const TOKENS_COLOR = "#06b6d4";
+
+const TOOLTIP_STYLES = {
+  contentStyle: {
+    backgroundColor: "#111113",
+    border: "1px solid #23232a",
+    borderRadius: "8px",
+    fontSize: "12px",
+    color: "#fafafa",
+  },
+  itemStyle: { color: "#fafafa" } as const,
+  labelStyle: { color: "#a1a1aa" } as const,
+};
+
+const AXIS_COMMON = {
+  stroke: "var(--muted)",
+  fontSize: 11,
+  tickLine: false,
+  axisLine: false,
+} as const;
+
+function tooltipFormatter(value: number | undefined, name: string | undefined) {
+  const v = value ?? 0;
+  if (name === "cost") return [formatCurrency(v), "Cost"];
+  if (name === "tokens") return [formatTokensCompact(v), "Tokens"];
+  return [String(v), name ?? ""];
+}
+
+function tooltipLabelFormatter(label: unknown) {
+  return formatXAxisDate(String(label ?? ""));
+}
+
 export function UsageChart({ data, period, range }: UsageChartProps) {
   const t = useTranslations("profile");
   const [metric, setMetric] = useState<Metric>("cost");
@@ -150,6 +185,7 @@ export function UsageChart({ data, period, range }: UsageChartProps) {
   const showCost = metric === "cost" || metric === "both";
   const showTokens = metric === "tokens" || metric === "both";
   const isDual = metric === "both";
+  const isSingleDay = filledData.length <= 1;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-6">
@@ -174,109 +210,102 @@ export function UsageChart({ data, period, range }: UsageChartProps) {
           ))}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart
-          data={filledData}
-          margin={{ top: 4, right: isDual ? 4 : 4, left: 0, bottom: 0 }}
-        >
-          <defs>
-            <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#F9A615" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#F9A615" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="tokensGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="var(--border-color)"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="date"
-            tickFormatter={formatXAxisDate}
-            stroke="var(--muted)"
-            fontSize={11}
-            tickLine={false}
-            axisLine={false}
-            interval="preserveStartEnd"
-            minTickGap={40}
-          />
-
-          {/* Cost Y-axis (left) */}
-          {showCost && (
-            <YAxis
-              yAxisId="left"
-              tickFormatter={formatCurrency}
-              stroke="var(--muted)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              width={60}
+      {isSingleDay ? (
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart
+            data={filledData}
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+            barCategoryGap="60%"
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+            <XAxis dataKey="date" tickFormatter={formatXAxisDate} {...AXIS_COMMON} />
+            {showCost && (
+              <YAxis yAxisId="left" tickFormatter={formatCurrency} {...AXIS_COMMON} width={60} />
+            )}
+            {showTokens && (
+              <YAxis
+                yAxisId={isDual ? "right" : "left"}
+                orientation={isDual ? "right" : "left"}
+                tickFormatter={formatTokensCompact}
+                {...AXIS_COMMON}
+                width={60}
+              />
+            )}
+            <Tooltip {...TOOLTIP_STYLES} formatter={tooltipFormatter} labelFormatter={tooltipLabelFormatter} />
+            {showCost && (
+              <Bar dataKey="cost" yAxisId="left" fill={COST_COLOR} radius={[4, 4, 0, 0]} maxBarSize={120} />
+            )}
+            {showTokens && (
+              <Bar
+                dataKey="tokens"
+                yAxisId={isDual ? "right" : "left"}
+                fill={TOKENS_COLOR}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={120}
+              />
+            )}
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart
+            data={filledData}
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={COST_COLOR} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={COST_COLOR} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="tokensGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={TOKENS_COLOR} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={TOKENS_COLOR} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+            <XAxis
+              dataKey="date"
+              tickFormatter={formatXAxisDate}
+              {...AXIS_COMMON}
+              interval="preserveStartEnd"
+              minTickGap={40}
             />
-          )}
-
-          {/* Tokens Y-axis (right, only in dual mode) */}
-          {showTokens && (
-            <YAxis
-              yAxisId={isDual ? "right" : "left"}
-              orientation={isDual ? "right" : "left"}
-              tickFormatter={formatTokensCompact}
-              stroke="var(--muted)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              width={60}
-            />
-          )}
-
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#111113",
-              border: "1px solid #23232a",
-              borderRadius: "8px",
-              fontSize: "12px",
-              color: "#fafafa",
-            }}
-            itemStyle={{ color: "#fafafa" }}
-            labelStyle={{ color: "#a1a1aa" }}
-            formatter={(value: number | undefined, name: string | undefined) => {
-              const v = value ?? 0;
-              if (name === "cost") return [formatCurrency(v), "Cost"];
-              if (name === "tokens")
-                return [formatTokensCompact(v), "Tokens"];
-              return [String(v), name ?? ""];
-            }}
-            labelFormatter={(label: unknown) =>
-              formatXAxisDate(String(label ?? ""))
-            }
-          />
-
-          {showCost && (
-            <Area
-              type="monotone"
-              dataKey="cost"
-              yAxisId="left"
-              stroke="#F9A615"
-              strokeWidth={2}
-              fill="url(#costGradient)"
-            />
-          )}
-
-          {showTokens && (
-            <Area
-              type="monotone"
-              dataKey="tokens"
-              yAxisId={isDual ? "right" : "left"}
-              stroke="#06b6d4"
-              strokeWidth={2}
-              fill="url(#tokensGradient)"
-            />
-          )}
-        </AreaChart>
-      </ResponsiveContainer>
+            {showCost && (
+              <YAxis yAxisId="left" tickFormatter={formatCurrency} {...AXIS_COMMON} width={60} />
+            )}
+            {showTokens && (
+              <YAxis
+                yAxisId={isDual ? "right" : "left"}
+                orientation={isDual ? "right" : "left"}
+                tickFormatter={formatTokensCompact}
+                {...AXIS_COMMON}
+                width={60}
+              />
+            )}
+            <Tooltip {...TOOLTIP_STYLES} formatter={tooltipFormatter} labelFormatter={tooltipLabelFormatter} />
+            {showCost && (
+              <Area
+                type="monotone"
+                dataKey="cost"
+                yAxisId="left"
+                stroke={COST_COLOR}
+                strokeWidth={2}
+                fill="url(#costGradient)"
+              />
+            )}
+            {showTokens && (
+              <Area
+                type="monotone"
+                dataKey="tokens"
+                yAxisId={isDual ? "right" : "left"}
+                stroke={TOKENS_COLOR}
+                strokeWidth={2}
+                fill="url(#tokensGradient)"
+              />
+            )}
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
