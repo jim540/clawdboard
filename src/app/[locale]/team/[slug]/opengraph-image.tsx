@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { ImageResponse } from "next/og";
 import { getTeamBySlug } from "@/lib/db/teams";
 import { getTeamStats } from "@/lib/db/cached";

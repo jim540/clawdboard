@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
