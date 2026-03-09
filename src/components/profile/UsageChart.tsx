@@ -186,6 +186,7 @@ export function UsageChart({ data, period, range }: UsageChartProps) {
   const showTokens = metric === "tokens" || metric === "both";
   const isDual = metric === "both";
   const isSingleDay = filledData.length <= 1;
+  const hasData = filledData.some((d) => d.cost > 0 || d.tokens > 0);
 
   return (
     <div className="rounded-lg border border-border bg-surface p-6">
@@ -210,7 +211,12 @@ export function UsageChart({ data, period, range }: UsageChartProps) {
           ))}
         </div>
       </div>
-      {isSingleDay ? (
+      {isSingleDay && !hasData ? (
+        <div className="flex flex-col items-center justify-center h-[300px] text-center">
+          <p className="text-muted text-sm font-medium">{t("noActivity")}</p>
+          <p className="text-muted/60 text-xs mt-1">{t("noActivityHint")}</p>
+        </div>
+      ) : isSingleDay ? (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
             data={filledData}
@@ -231,7 +237,7 @@ export function UsageChart({ data, period, range }: UsageChartProps) {
                 width={60}
               />
             )}
-            <Tooltip {...TOOLTIP_STYLES} formatter={tooltipFormatter} labelFormatter={tooltipLabelFormatter} />
+            <Tooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} {...TOOLTIP_STYLES} formatter={tooltipFormatter} labelFormatter={tooltipLabelFormatter} />
             {showCost && (
               <Bar dataKey="cost" yAxisId="left" fill={COST_COLOR} radius={[4, 4, 0, 0]} maxBarSize={120} />
             )}
@@ -282,7 +288,7 @@ export function UsageChart({ data, period, range }: UsageChartProps) {
                 width={60}
               />
             )}
-            <Tooltip {...TOOLTIP_STYLES} formatter={tooltipFormatter} labelFormatter={tooltipLabelFormatter} />
+            <Tooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} {...TOOLTIP_STYLES} formatter={tooltipFormatter} labelFormatter={tooltipLabelFormatter} />
             {showCost && (
               <Area
                 type="monotone"

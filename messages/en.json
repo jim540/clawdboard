@@ -100,6 +100,7 @@
     "downloadPng": "Download PNG",
     "saving": "Saving...",
     "noActivity": "No activity in this period",
+    "noActivityHint": "Data appears after your next sync",
     "viewProfile": "View Profile",
     "backToLeaderboard": "Back to Leaderboard",
     "teamNudge": "Compare your stats with teammates.",
@@ -332,7 +333,22 @@
     "teamNamePlaceholder": "e.g., Morgen Engineering",
     "teamNameCount": "{count}/50 characters",
     "teamNameMin": "(min 2)",
-    "memberCount": "{count, plural, one {# member} other {# members}}"
+    "memberCount": "{count, plural, one {# member} other {# members}}",
+    "shareLink": "Share Link",
+    "searchClawdboard": "Search Clawdboard",
+    "searchPlaceholder": "Search by username or name...",
+    "inviteAction": "Invite",
+    "invited": "Invited",
+    "pending": "pending",
+    "noResults": "No users found",
+    "minChars": "Type at least 2 characters to search"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "invitedYou": "invited you to join",
+    "accept": "Accept",
+    "decline": "Decline",
+    "noNotifications": "No notifications"
   },
   "faq": {
     "heading": "Frequently Asked Questions",

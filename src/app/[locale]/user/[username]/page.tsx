@@ -6,7 +6,13 @@ import nextDynamic from "next/dynamic";
 
 export const dynamic = "force-dynamic";
 import { Header } from "@/components/layout/Header";
-import { getUserByUsername, persistEarnedBadges } from "@/lib/db/profile";
+import {
+  getUserByUsername,
+  persistEarnedBadges,
+  getUserSummary as getUncachedSummary,
+  getUserDailyData as getUncachedDailyData,
+  getUserModelBreakdown as getUncachedModelBreakdown,
+} from "@/lib/db/profile";
 import {
   getUserSummary,
   getUserDailyData,
@@ -132,12 +138,18 @@ export default async function UserProfilePage({
   // Fetch all profile data in parallel
   // Filtered data: summary, chart, model breakdown use the selected period
   // Unfiltered data: daily data for activity grid + streak, rank is always all-time
+  // "today" bypasses unstable_cache for real-time accuracy (cheap single-day query)
+  const isToday = period === "today";
+  const getSummary = isToday ? getUncachedSummary : getUserSummary;
+  const getDaily = isToday ? getUncachedDailyData : getUserDailyData;
+  const getModels = isToday ? getUncachedModelBreakdown : getUserModelBreakdown;
+
   const [summary, filteredDailyData, allDailyData, modelData, rank, session, publicTeams] =
     await Promise.all([
-      getUserSummary(user.id, period, range),
-      getUserDailyData(user.id, period, range),
-      getUserDailyData(user.id),
-      getUserModelBreakdown(user.id, period, range),
+      getSummary(user.id, period, range),
+      getDaily(user.id, period, range),
+      getDaily(user.id),
+      getModels(user.id, period, range),
       getUserRank(user.id),
       auth(),
       getUserPublicTeams(user.id),
