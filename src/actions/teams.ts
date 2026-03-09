@@ -2,13 +2,14 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { teams, teamMembers } from "@/lib/db/schema";
+import { teams, teamMembers, users } from "@/lib/db/schema";
 import {
   generateUniqueSlug,
   getTeamMembership,
   getActiveOwnerCount,
   getActiveMemberCount,
 } from "@/lib/db/teams";
+import { createNotification } from "@/lib/db/notifications";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -406,4 +407,75 @@ export async function renameTeam(
 
   revalidatePath("/team", "layout");
   redirect(`/team/${newSlug}/settings`);
+}
+
+// ─── Invite user to team ─────────────────────────────────────────────────────
+
+export async function inviteToTeam(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const teamId = formData.get("teamId") as string;
+  const targetUserId = formData.get("targetUserId") as string;
+  if (!teamId || !targetUserId) return { error: "Missing teamId or targetUserId" };
+
+  // Verify caller, team, target user, and existing membership in parallel
+  const [callerMembership, [team], [targetUser], existingMembership] =
+    await Promise.all([
+      getTeamMembership(teamId, session.user.id),
+      db
+        .select()
+        .from(teams)
+        .where(and(eq(teams.id, teamId), isNull(teams.deletedAt)))
+        .limit(1),
+      db
+        .select({ id: users.id, githubUsername: users.githubUsername })
+        .from(users)
+        .where(eq(users.id, targetUserId))
+        .limit(1),
+      db
+        .select({ id: teamMembers.id, status: teamMembers.status })
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.teamId, teamId),
+            eq(teamMembers.userId, targetUserId),
+            isNull(teamMembers.leftAt)
+          )
+        )
+        .limit(1),
+    ]);
+
+  if (!callerMembership) return { error: "You are not a member of this team" };
+  if (!team) return { error: "Team not found" };
+  if (team.isLocked) return { error: "Team is locked and not accepting new members" };
+  if (!targetUser) return { error: "User not found" };
+
+  if (existingMembership.length > 0) {
+    const status = existingMembership[0].status;
+    if (status === "active") return { error: "User is already a member" };
+    if (status === "pending") return { error: "User has already been invited" };
+  }
+
+  // Insert pending membership + notification in parallel
+  await Promise.all([
+    db.insert(teamMembers).values({
+      teamId,
+      userId: targetUserId,
+      role: "member",
+      status: "pending",
+    }),
+    createNotification(targetUserId, "team_invite", {
+      teamId: team.id,
+      teamName: team.name,
+      teamSlug: team.slug,
+      invitedBy: session.user.githubUsername ?? session.user.name ?? "Someone",
+      invitedByImage: session.user.image ?? null,
+    }),
+  ]);
+
+  revalidatePath("/team", "layout");
 }

@@ -29,6 +29,7 @@ import { YourPosition } from "@/components/leaderboard/YourPosition";
 import { BadgePrompt } from "@/components/leaderboard/BadgePrompt";
 import { SignInButton } from "@/components/auth/SignInButton";
 import { UserNav } from "@/components/auth/UserNav";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Header } from "@/components/layout/Header";
 import { cookies } from "next/headers";
 import { PERIOD_COOKIE, parsePeriodCookie } from "@/lib/period-cookie";
@@ -135,10 +136,13 @@ export default async function LeaderboardPage({ searchParams }: PageProps) {
         subtitle="claude code leaderboard"
         rightContent={
           session?.user ? (
-            <UserNav
-              name={displayName}
-              image={session.user.image}
-            />
+            <>
+              <NotificationBell />
+              <UserNav
+                name={displayName}
+                image={session.user.image}
+              />
+            </>
           ) : (
             <SignInButton />
           )

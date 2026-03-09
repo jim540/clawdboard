@@ -33,6 +33,7 @@ interface MemberData {
   githubUsername: string | null;
   image: string | null;
   role: string;
+  status: string;
   joinedAt: Date | null;
   leftAt: Date | null;
 }
@@ -241,6 +242,12 @@ export function TeamSettings({
                     {member.role === "owner" && (
                       <span className="rounded-full bg-accent/15 px-2 py-0.5 font-mono text-[10px] font-medium text-accent">
                         {t("owner")}
+                      </span>
+                    )}
+                    {member.status === "pending" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] font-medium text-accent">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                        {t("pending")}
                       </span>
                     )}
                   </div>

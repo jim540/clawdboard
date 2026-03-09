@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { env } from "@/lib/env";
 import { buildInviteUrl } from "@/lib/url";
+import { UserSearchInvite } from "./UserSearchInvite";
 
 type CopyAction = "link" | "slack";
+type InviteTab = "link" | "search";
 
 interface TeamInviteSectionProps {
   teamSlug: string;
+  teamId: string;
   inviteToken: string;
   isLocked: boolean;
   memberCount: number;
@@ -91,13 +94,73 @@ function InviteActions({
   );
 }
 
+function InviteTabs({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: InviteTab;
+  onTabChange: (tab: InviteTab) => void;
+}) {
+  const t = useTranslations("team");
+  const tabClass = (tab: InviteTab) =>
+    `px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-wider transition-colors cursor-pointer ${
+      activeTab === tab
+        ? "text-accent border-b-2 border-accent"
+        : "text-muted hover:text-foreground border-b-2 border-transparent"
+    }`;
+
+  return (
+    <div className="mb-3 flex gap-1 border-b border-border">
+      <button type="button" onClick={() => onTabChange("link")} className={tabClass("link")}>
+        {t("shareLink")}
+      </button>
+      <button type="button" onClick={() => onTabChange("search")} className={tabClass("search")}>
+        {t("searchClawdboard")}
+      </button>
+    </div>
+  );
+}
+
+function InviteContent({
+  tab,
+  teamId,
+  inviteUrl,
+  slackMessage,
+  emailSubject,
+  emailBody,
+  labels,
+}: {
+  tab: InviteTab;
+  teamId: string;
+  inviteUrl: string;
+  slackMessage: string;
+  emailSubject: string;
+  emailBody: string;
+  labels: { copyLink: string; copyForSlack: string; emailInvite: string; copied: string };
+}) {
+  if (tab === "search") {
+    return <UserSearchInvite teamId={teamId} />;
+  }
+  return (
+    <InviteActions
+      inviteUrl={inviteUrl}
+      slackMessage={slackMessage}
+      emailSubject={emailSubject}
+      emailBody={emailBody}
+      labels={labels}
+    />
+  );
+}
+
 export function TeamInviteSection({
   teamSlug,
+  teamId,
   inviteToken,
   isLocked,
   memberCount,
 }: TeamInviteSectionProps) {
   const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<InviteTab>("link");
   const t = useTranslations("team");
 
   const inviteUrl = buildInviteUrl(env.NEXT_PUBLIC_BASE_URL, teamSlug, inviteToken);
@@ -135,7 +198,10 @@ export function TeamInviteSection({
             <p className="mb-3 font-mono text-xs text-muted">
               {t("growTeam")}
             </p>
-            <InviteActions
+            <InviteTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <InviteContent
+              tab={activeTab}
+              teamId={teamId}
               inviteUrl={inviteUrl}
               slackMessage={slackMessage}
               emailSubject={emailSubject}
@@ -174,7 +240,10 @@ export function TeamInviteSection({
               className="mt-3"
               style={{ animation: "fadeInUp 0.2s ease-out both" }}
             >
-              <InviteActions
+              <InviteTabs activeTab={activeTab} onTabChange={setActiveTab} />
+              <InviteContent
+                tab={activeTab}
+                teamId={teamId}
                 inviteUrl={inviteUrl}
                 slackMessage={slackMessage}
                 emailSubject={emailSubject}

@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { UserNav } from "@/components/auth/UserNav";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Header } from "@/components/layout/Header";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 import { BadgesClient } from "@/components/settings/BadgesClient";
@@ -79,7 +80,10 @@ export default async function SettingsPage() {
       <Header
         subtitle="settings"
         rightContent={
-          <UserNav name={displayName} image={session.user.image} />
+          <>
+            <NotificationBell />
+            <UserNav name={displayName} image={session.user.image} />
+          </>
         }
       />
 

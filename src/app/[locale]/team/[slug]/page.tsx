@@ -32,6 +32,7 @@ import { TeamSwitcher } from "@/components/teams/TeamSwitcher";
 import { TeamInviteSection } from "@/components/teams/TeamInviteSection";
 import { TeamCreatedModal } from "@/components/teams/TeamCreatedModal";
 import { UserNav } from "@/components/auth/UserNav";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { safeHostname, buildInviteUrl } from "@/lib/url";
 import { PERIOD_COOKIE, parsePeriodCookie } from "@/lib/period-cookie";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -154,7 +155,8 @@ export default async function TeamProfilePage({ params, searchParams }: PageProp
     getTeamLeaderboardData(team.id, period, sort, order, range),
   ]);
 
-  const activeMembers = members.filter((m) => !m.leftAt);
+  const activeMembers = members.filter((m) => !m.leftAt && m.status === "active");
+  const pendingMembers = members.filter((m) => !m.leftAt && m.status === "pending");
   const formerMembers = members.filter((m) => m.leftAt !== null);
 
   const breadcrumbLd = {
@@ -187,10 +189,13 @@ export default async function TeamProfilePage({ params, searchParams }: PageProp
         subtitle={team.name}
         rightContent={
           session?.user ? (
-            <UserNav
-              name={session.user.githubUsername ?? session.user.name}
-              image={session.user.image}
-            />
+            <>
+              <NotificationBell />
+              <UserNav
+                name={session.user.githubUsername ?? session.user.name}
+                image={session.user.image}
+              />
+            </>
           ) : undefined
         }
       />
@@ -316,10 +321,47 @@ export default async function TeamProfilePage({ params, searchParams }: PageProp
         {isMember && (
           <TeamInviteSection
             teamSlug={team.slug}
+            teamId={team.id}
             inviteToken={team.inviteToken}
             isLocked={team.isLocked ?? false}
             memberCount={activeMembers.length}
           />
+        )}
+
+        {/* Pending invitations — visible to members only */}
+        {isMember && pendingMembers.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {pendingMembers.map((member) => (
+              <div
+                key={member.userId}
+                className="flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2"
+              >
+                {member.image ? (
+                  <Image
+                    src={member.image}
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 rounded-full ring-1 ring-border opacity-60"
+                  />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-border/60 text-[9px] font-medium text-dim">
+                    ?
+                  </div>
+                )}
+                <span className="font-mono text-xs text-muted">
+                  {member.githubUsername ?? "—"}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 font-mono text-[9px] font-medium text-accent">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  {t("pending")}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Leaderboard table */}

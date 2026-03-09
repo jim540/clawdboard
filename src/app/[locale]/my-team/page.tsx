@@ -6,6 +6,7 @@ import { cachedAuth } from "@/lib/auth";
 import { getUserTeams } from "@/lib/db/teams";
 import { CreateTeamForm } from "@/components/teams/CreateTeamForm";
 import { UserNav } from "@/components/auth/UserNav";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Header } from "@/components/layout/Header";
 import { FooterNav } from "@/components/layout/FooterNav";
 import { getTranslations } from "next-intl/server";
@@ -37,10 +38,13 @@ export default async function MyTeamPage() {
       <Header
         subtitle="my team"
         rightContent={
-          <UserNav
-            name={session.user.githubUsername ?? session.user.name}
-            image={session.user.image}
-          />
+          <>
+            <NotificationBell />
+            <UserNav
+              name={session.user.githubUsername ?? session.user.name}
+              image={session.user.image}
+            />
+          </>
         }
       />
 

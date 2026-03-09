@@ -74,6 +74,7 @@ export async function getTeamMembership(
       and(
         eq(teamMembers.teamId, teamId),
         eq(teamMembers.userId, userId),
+        eq(teamMembers.status, "active"),
         isNull(teamMembers.leftAt)
       )
     )
@@ -122,6 +123,7 @@ export async function getTeamMembers(
     githubUsername: string | null;
     image: string | null;
     role: string;
+    status: string;
     joinedAt: Date | null;
     leftAt: Date | null;
   }>
@@ -132,6 +134,7 @@ export async function getTeamMembers(
       githubUsername: users.githubUsername,
       image: users.image,
       role: teamMembers.role,
+      status: teamMembers.status,
       joinedAt: teamMembers.joinedAt,
       leftAt: teamMembers.leftAt,
     })

@@ -145,9 +145,32 @@ export const teamMembers = pgTable("team_members", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("member"), // "owner" | "member"
+  status: text("status").notNull().default("active"), // "active" | "pending"
   joinedAt: timestamp("joined_at").defaultNow(),
   leftAt: timestamp("left_at"),
 });
+
+// ─── Notifications ─────────────────────────────────────────────────────────
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(), // "team_invite" etc.
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    readAt: timestamp("read_at"),
+    actedAt: timestamp("acted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("notifications_user_unacted_idx").on(table.userId, table.actedAt),
+  ]
+);
 
 // ─── GitHub org memberships ──────────────────────────────────────────────────
 
@@ -243,7 +266,6 @@ export const leaderboardView = pgMaterializedView("leaderboard_mv", {
       COUNT(DISTINCT da.date) AS active_days
     FROM users u
     LEFT JOIN daily_aggregates da ON da.user_id = u.id
-    WHERE u.last_sync_at IS NOT NULL
     GROUP BY u.id, u.github_username, u.image
   ),
   streak_days AS (
