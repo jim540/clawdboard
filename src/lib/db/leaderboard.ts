@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { MIN_DATE, VALID_PERIODS, type Period } from "@/lib/constants";
+import { MIN_DATE, NEW_USER_WINDOW_MS, VALID_PERIODS, type Period } from "@/lib/constants";
 export type { Period };
 export { VALID_PERIODS };
 
@@ -25,7 +25,8 @@ export interface LeaderboardRow {
   totalTokens: number;
   activeDays: number;
   currentStreak: number;
-  rankDelta: number | null; // null = NEW, 0 = unchanged, positive = moved up, negative = moved down
+  rankDelta: number | null; // null = no previous snapshot, 0 = unchanged, positive = moved up, negative = moved down
+  isNew: boolean; // true if account created within 48h
   cookingUrl: string | null;
   cookingLabel: string | null;
 }
@@ -109,12 +110,13 @@ function buildLeaderboardCTEs(dateFilter: ReturnType<typeof sql>) {
         u.image,
         u.cooking_url,
         u.cooking_label,
+        u.created_at,
         COALESCE(SUM(da.total_cost::numeric), 0)::text AS total_cost,
         COALESCE(SUM(da.input_tokens + da.output_tokens + da.cache_creation_tokens + da.cache_read_tokens), 0) AS total_tokens,
         COUNT(DISTINCT da.date)::int AS active_days
       FROM users u
       LEFT JOIN daily_aggregates da ON da.user_id = u.id AND ${dateFilter}
-      GROUP BY u.id, u.github_username, u.image, u.cooking_url, u.cooking_label
+      GROUP BY u.id, u.github_username, u.image, u.cooking_url, u.cooking_label, u.created_at
     ),
     streak_days AS (
       SELECT DISTINCT user_id, date::date AS d
@@ -198,6 +200,7 @@ export async function getLeaderboardData(
         f.image,
         f.cooking_url,
         f.cooking_label,
+        f.created_at,
         f.total_cost,
         f.total_tokens,
         f.active_days::int,
@@ -249,6 +252,7 @@ export async function getUserLeaderboardRow(
           f.image,
           f.cooking_url,
           f.cooking_label,
+          f.created_at,
           f.total_cost,
           f.total_tokens,
           f.active_days::int,
@@ -276,6 +280,7 @@ export interface RawRow {
   image: string | null;
   cooking_url: string | null;
   cooking_label: string | null;
+  created_at: string | null;
   total_cost: string | null;
   total_tokens: string | number | null;
   active_days: string | number | null;
@@ -296,6 +301,8 @@ export function mapSingleRow(
   previousRanks?: Map<string, number>
 ): LeaderboardRow {
   const prevRank = previousRanks?.get(row.user_id);
+  const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
+  const isNew = Date.now() - createdAt < NEW_USER_WINDOW_MS;
   return {
     rank,
     userId: row.user_id,
@@ -309,6 +316,7 @@ export function mapSingleRow(
       previousRanks !== undefined && prevRank !== undefined
         ? prevRank - rank
         : null,
+    isNew,
     cookingUrl: row.cooking_url ?? null,
     cookingLabel: row.cooking_label ?? null,
   };

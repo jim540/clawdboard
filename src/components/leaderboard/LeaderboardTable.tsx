@@ -190,7 +190,7 @@ export function LeaderboardRowItem({
 
       {/* Movement */}
       <td className="hidden sm:table-cell px-2 py-3 text-center">
-        <RankMovement delta={row.rankDelta} />
+        <RankMovement delta={row.rankDelta} isNew={row.isNew} />
       </td>
 
       {/* User */}

@@ -70,9 +70,9 @@ function SyncedStatBar({ row, period, rangeFrom, rangeTo, labels }: { row: Leade
 
   // Rank movement
   let movementEl: React.ReactNode = null;
-  if (row.rankDelta === null) {
+  if (row.isNew) {
     movementEl = <span className="text-xs font-semibold text-accent">{labels.new}</span>;
-  } else if (row.rankDelta > 0) {
+  } else if (row.rankDelta !== null && row.rankDelta > 0) {
     movementEl = (
       <span className="text-xs font-semibold text-success">
         &#9650;+{row.rankDelta}
