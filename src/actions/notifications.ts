@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/notifications";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { revalidateTeamCaches } from "@/lib/db/cached";
 import type { ActionResult } from "@/lib/action-result";
 
 // ─── Shared validation ──────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ export async function acceptTeamInvite(
     markNotificationActed(notificationId),
   ]);
 
+  revalidateTeamCaches();
   revalidatePath("/team", "layout");
 }
 
@@ -98,5 +100,6 @@ export async function declineTeamInvite(
     markNotificationActed(notificationId),
   ]);
 
+  revalidateTeamCaches();
   revalidatePath("/team", "layout");
 }

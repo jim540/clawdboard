@@ -33,12 +33,13 @@ export async function runSetupHook(): Promise<boolean> {
 
   if (migrated) {
     console.log(chalk.green("Migrated from ccboard to clawdboard!"));
+  } else {
+    console.log(
+      chalk.dim(
+        "Your data is live! Future usage syncs automatically every 2 hours."
+      )
+    );
   }
-  console.log(
-    chalk.dim(
-      "Your data is live! Future usage syncs automatically every 2 hours."
-    )
-  );
   console.log(
     chalk.dim(
       "Only numbers are shared — never your prompts, code, or project names."
@@ -54,7 +55,7 @@ export async function runSetupHook(): Promise<boolean> {
  * Flow:
  * 1. Check for API token (require auth first)
  * 2. Read existing ~/.claude/settings.json
- * 3. Merge clawdboard PostToolUse hook (preserving all existing hooks/settings)
+ * 3. Merge clawdboard Stop hook (preserving all existing hooks/settings)
  * 4. Write merged settings back
  * 5. Print activation instructions
  *

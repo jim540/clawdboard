@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { revalidateAllCaches } from "@/lib/db/cached";
 import type { ActionResult } from "@/lib/action-result";
 import { validatePublicUrl } from "@/lib/validate-url";
 import { BADGES, MAX_PINNED_BADGES } from "@/lib/badges";
@@ -15,6 +16,8 @@ export async function deleteAccount(): Promise<ActionResult> {
 
   await db.delete(users).where(eq(users.id, session.user.id));
 
+  // User removal affects leaderboards, team stats, and all aggregate caches
+  revalidateAllCaches();
   revalidatePath("/");
   revalidatePath("/teams");
 }

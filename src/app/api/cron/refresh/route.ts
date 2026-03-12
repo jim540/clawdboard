@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateAllCaches } from "@/lib/db/cached";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { sql } from "drizzle-orm";
@@ -171,6 +172,11 @@ export async function GET(req: NextRequest) {
       DO UPDATE SET rank = EXCLUDED.rank, captured_at = NOW()
     `);
     const snapshotsCaptured = result.rowCount ?? 0;
+
+    // Invalidate all unstable_cache entries so the next page visit
+    // picks up the freshly rebuilt materialized view. Done before cleanup
+    // so caches are fresh even if the cleanup queries below fail.
+    revalidateAllCaches();
 
     // Data retention cleanup
     const expiredCodes = await db.execute(sql`

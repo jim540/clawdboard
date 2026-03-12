@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { revalidatePath } from "next/cache";
+import { revalidateAllCaches } from "@/lib/db/cached";
 import { db } from "@/lib/db";
 import { dailyAggregates, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest) {
       .set({ lastSyncAt: new Date(), ...(syncIntervalMs != null && { syncIntervalMs }) })
       .where(eq(users.id, user.id));
 
-    // 6. Invalidate cached leaderboard data so the next page visit shows fresh results.
+    // 6. Invalidate all cached data so the next page visit shows fresh results.
+    revalidateAllCaches();
     revalidatePath("/");
 
     // 7. Sync GitHub orgs in the background (slow, non-critical)

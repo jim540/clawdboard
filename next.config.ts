@@ -4,6 +4,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Disable the client-side router cache so navigations always fetch fresh
+    // server data. Without this, Next.js caches dynamic page responses for 30s
+    // during soft navigation, causing users to see stale stats.
+    staleTimes: { dynamic: 0, static: 0 },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "avatars.githubusercontent.com" },

@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { DEBOUNCE_MINUTES } from "./hook.js";
 
 /**
  * A single hook entry within a hook group.
@@ -28,6 +29,8 @@ export interface ClaudeSettings {
   hooks?: Record<string, HookGroup[]>;
   [key: string]: unknown;
 }
+
+const HOOK_EVENT = "Stop";
 
 const CLAUDE_DIR = join(homedir(), ".claude");
 const SETTINGS_PATH = join(CLAUDE_DIR, "settings.json");
@@ -61,17 +64,31 @@ export async function writeSettings(settings: ClaudeSettings): Promise<void> {
 }
 
 /**
- * Check if the current clawdboard hook is already installed in PostToolUse.
+ * Check if a hook group list contains a clawdboard hook matching the given predicate.
  */
-function hasNewHook(settings: ClaudeSettings): boolean {
-  const postToolUse = settings.hooks?.PostToolUse ?? [];
-  return postToolUse.some((group) =>
-    group.hooks.some((h) => h.command.includes("clawdboard"))
+function hasClawdboardHook(
+  groups: HookGroup[],
+  predicate?: (command: string) => boolean
+): boolean {
+  return groups.some((group) =>
+    group.hooks.some(
+      (h) =>
+        h.command.includes("clawdboard") &&
+        (predicate ? predicate(h.command) : true)
+    )
   );
 }
 
 /**
- * Check if the legacy ccboard hook is present in PostToolUse.
+ * Check if the current optimized hook is installed on the Stop event.
+ */
+function hasCurrentHook(settings: ClaudeSettings): boolean {
+  const stop = settings.hooks?.[HOOK_EVENT] ?? [];
+  return hasClawdboardHook(stop, (cmd) => cmd.includes("find"));
+}
+
+/**
+ * Check if a legacy ccboard hook exists in PostToolUse.
  */
 function hasLegacyHook(settings: ClaudeSettings): boolean {
   const postToolUse = settings.hooks?.PostToolUse ?? [];
@@ -80,28 +97,51 @@ function hasLegacyHook(settings: ClaudeSettings): boolean {
   );
 }
 
-/**
- * Check if any clawdboard or legacy ccboard hook is installed.
- */
-export function isHookInstalled(settings: ClaudeSettings): boolean {
-  return hasNewHook(settings) || hasLegacyHook(settings);
-}
+
 
 /**
- * Remove all hook groups that contain a legacy ccboard hook command.
+ * Remove all hook groups containing ccboard or clawdboard from a group list.
  */
-function removeLegacyHooks(postToolUse: HookGroup[]): HookGroup[] {
-  return postToolUse.filter(
-    (group) => !group.hooks.some((h) => h.command.includes("ccboard"))
+function removeMatchingHooks(groups: HookGroup[]): HookGroup[] {
+  return groups.filter(
+    (group) =>
+      !group.hooks.some(
+        (h) =>
+          h.command.includes("ccboard") || h.command.includes("clawdboard")
+      )
   );
 }
 
 /**
- * Pure function: install or migrate the clawdboard PostToolUse hook.
+ * Build the optimized hook entry with shell-level debounce.
  *
- * - If the new hook already exists → alreadyInstalled: true
- * - If the legacy ccboard hook exists → replace it with the new one (migrated: true)
- * - If neither exists → install fresh
+ * The bash wrapper checks if ~/.clawdboard/last-sync was modified within the
+ * debounce window. If so, it exits immediately without spawning Node/npx.
+ * This prevents CPU spikes when many concurrent agents trigger the hook.
+ */
+function buildHookEntry(): HookGroup {
+  return {
+    hooks: [
+      {
+        type: "command",
+        command:
+          `bash -c 'f=$HOME/.clawdboard/last-sync; [ -f "$f" ] && [ -n "$(find "$f" -mmin -` +
+          DEBOUNCE_MINUTES +
+          ` 2>/dev/null)" ] && exit 0; npx clawdboard hook-sync'`,
+        async: true,
+        timeout: 120,
+      },
+    ],
+  };
+}
+
+/**
+ * Pure function: install, upgrade, or migrate the clawdboard hook to Stop.
+ *
+ * - If the current hook already exists on Stop → alreadyInstalled: true
+ * - If an old hook exists on PostToolUse → remove it and install on Stop
+ * - If the legacy ccboard hook exists → remove it and install on Stop (migrated: true)
+ * - If neither exists → install fresh on Stop
  *
  * Preserves ALL existing keys (permissions, statusLine, etc.)
  */
@@ -110,34 +150,37 @@ export function installHook(settings: ClaudeSettings): {
   alreadyInstalled: boolean;
   migrated: boolean;
 } {
-  if (hasNewHook(settings)) {
+  if (hasCurrentHook(settings)) {
     return { settings, alreadyInstalled: true, migrated: false };
   }
 
-  const existing = settings.hooks?.PostToolUse ?? [];
   const migrated = hasLegacyHook(settings);
 
-  // Remove legacy ccboard hooks before adding the new one
-  const cleaned = migrated ? removeLegacyHooks(existing) : existing;
+  // Clean up any old hooks from PostToolUse
+  const cleanedPostToolUse = removeMatchingHooks(
+    settings.hooks?.PostToolUse ?? []
+  );
 
-  const hookEntry: HookGroup = {
-    hooks: [
-      {
-        type: "command",
-        command: "npx clawdboard hook-sync",
-        async: true,
-        timeout: 120,
-      },
-    ],
-  };
+  // Clean up any old hooks from Stop (shouldn't exist, but be safe)
+  const cleanedStop = removeMatchingHooks(
+    settings.hooks?.[HOOK_EVENT] ?? []
+  );
 
   const merged: ClaudeSettings = {
     ...settings,
     hooks: {
       ...settings.hooks,
-      PostToolUse: [...cleaned, hookEntry],
+      // Preserve PostToolUse without clawdboard/ccboard hooks
+      PostToolUse: cleanedPostToolUse,
+      // Install on Stop
+      [HOOK_EVENT]: [...cleanedStop, buildHookEntry()],
     },
   };
+
+  // Clean up empty PostToolUse array
+  if (merged.hooks!.PostToolUse.length === 0) {
+    delete merged.hooks!.PostToolUse;
+  }
 
   return { settings: merged, alreadyInstalled: false, migrated };
 }

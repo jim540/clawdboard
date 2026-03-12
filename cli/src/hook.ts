@@ -5,8 +5,10 @@ import { join } from "node:path";
 import { loadConfig, getServerUrl } from "./config.js";
 import { ApiClient } from "./api-client.js";
 import { extractAndSanitize } from "./extract.js";
+import { readSettings, writeSettings, installHook } from "./settings.js";
 
 export const DEBOUNCE_MS = 2 * 60 * 60 * 1000; // 2 hours
+export const DEBOUNCE_MINUTES = DEBOUNCE_MS / 60_000; // used by shell-level debounce in settings.ts
 const CLAWDBOARD_DIR = join(homedir(), ".clawdboard");
 const SYNC_MARKER = join(CLAWDBOARD_DIR, "last-sync");
 
@@ -48,7 +50,7 @@ export async function markSynced(): Promise<void> {
 }
 
 /**
- * Main hook logic -- run by the PostToolUse hook via `npx clawdboard hook-sync`.
+ * Main hook logic -- run by the Stop hook via `npx clawdboard hook-sync`.
  *
  * This function:
  * 1. Checks debounce (skip if synced within 2 hours)
@@ -95,6 +97,18 @@ export async function runHookSync(): Promise<void> {
     const serverUrl = getServerUrl(config);
     const client = new ApiClient(serverUrl, config.apiToken);
     await client.sync({ ...payload, syncIntervalMs: DEBOUNCE_MS });
+
+    // Step 6: Auto-upgrade hook if running the old un-debounced version.
+    // This is the last thing we do — if it fails, the sync already succeeded.
+    try {
+      const settings = await readSettings();
+      const { settings: upgraded, alreadyInstalled } = installHook(settings);
+      if (!alreadyInstalled) {
+        await writeSettings(upgraded);
+      }
+    } catch {
+      // Upgrade failure is non-fatal
+    }
   } catch {
     // Swallow all errors -- async hook must exit cleanly
   }
