@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { cachedAuth, signIn } from "@/lib/auth";
+import { cachedAuth, signIn, isDevAuthMode } from "@/lib/auth";
 import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
@@ -22,6 +22,65 @@ export default async function SignInPage({
 
   if (session?.user) {
     redirect(callbackUrl);
+  }
+
+  if (isDevAuthMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="relative z-10 w-full max-w-sm rounded-lg border border-border bg-surface p-8">
+          <div className="text-center">
+            <h1 className="font-display text-xl font-bold text-foreground">
+              $ clawdboard
+              <span className="animate-blink ml-0.5 text-accent">_</span>
+            </h1>
+            <p className="mt-2 font-mono text-xs text-muted">
+              {`// dev mode — no GitHub OAuth required`}
+            </p>
+          </div>
+
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const username = formData.get("username") as string;
+              await signIn("credentials", {
+                username,
+                redirectTo: callbackUrl,
+              });
+            }}
+            className="mt-8 space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="username"
+                className="block font-mono text-xs text-muted mb-1"
+              >
+                Seeded username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                defaultValue="dev-alice"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm text-foreground focus:border-accent focus:outline-none"
+                placeholder="dev-alice"
+              />
+            </div>
+            <button
+              type="submit"
+              className="flex w-full items-center justify-center gap-3 rounded-md bg-accent px-4 py-3 font-mono text-sm font-semibold text-background transition-all hover:bg-accent-bright focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:outline-none"
+            >
+              Sign in as dev user
+            </button>
+          </form>
+
+          <p className="mt-6 text-center font-mono text-[10px] text-dim">
+            Set AUTH_GITHUB_ID and AUTH_GITHUB_SECRET
+            <br />
+            in .env.local to use real GitHub OAuth
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

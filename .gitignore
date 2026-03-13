@@ -46,3 +46,6 @@ next-env.d.ts
 
 # claude code settings
 .claude/
+
+# docker
+docker-compose.override.yml

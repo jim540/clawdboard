@@ -2,38 +2,40 @@
 
 Thanks for your interest in contributing! Here's how to get started.
 
-## Local Setup
+## Local Setup (zero config)
 
 1. **Fork and clone** the repo
 2. **Install dependencies:**
    ```bash
    npm install
    ```
-3. **Set up environment variables:**
+3. **Start Postgres and seed data** (requires [Docker](https://docs.docker.com/get-docker/)):
    ```bash
-   cp .env.example .env.local
+   npm run db:setup
    ```
-   Fill in the values:
-   - **DATABASE_URL** — Create a free database at [neon.tech](https://neon.tech)
-   - **AUTH_SECRET** — Run `openssl rand -base64 32`
-   - **AUTH_GITHUB_ID / AUTH_GITHUB_SECRET** — Create a [GitHub OAuth App](https://github.com/settings/developers) with callback URL `http://localhost:3001/api/auth/callback/github`
+   This starts a local Postgres container, pushes the schema, and seeds sample users with usage data.
 
-4. **Push the database schema:**
-   ```bash
-   export DATABASE_URL="your-connection-string"
-   npx drizzle-kit push
-   ```
-
-5. **Start the dev server:**
+4. **Start the dev server:**
    ```bash
    npm run dev
    ```
    The app runs on [localhost:3001](http://localhost:3001).
 
-6. **Create the materialized view** (needed for rank snapshots):
-   ```
-   GET http://localhost:3001/api/cron/refresh
-   ```
+5. **Sign in** at `/signin` with any seeded username: `dev-alice`, `dev-bob`, `dev-carol`, `dev-dave`, or `dev-eve`.
+
+No GitHub OAuth app, no Neon account, no secrets needed.
+
+### Optional: Real GitHub OAuth
+
+To test real GitHub sign-in locally, create a [GitHub OAuth App](https://github.com/settings/developers) and add to `.env.local`:
+
+```bash
+AUTH_GITHUB_ID=your-client-id
+AUTH_GITHUB_SECRET=your-client-secret
+AUTH_SECRET=$(openssl rand -base64 32)
+```
+
+Callback URL: `http://localhost:3001/api/auth/callback/github`
 
 ## Project Structure
 

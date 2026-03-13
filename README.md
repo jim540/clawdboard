@@ -30,44 +30,33 @@ The open-source leaderboard for Claude Code users. Track and compare usage, cost
 - **Styling:** Tailwind CSS v4
 - **Hosting:** Vercel
 
-## Self-Hosting
+## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- A [Neon](https://neon.tech) database (free tier works)
-- A [GitHub OAuth App](https://github.com/settings/developers)
-
-### Setup
+Requires [Node.js](https://nodejs.org/) 18+ and [Docker](https://docs.docker.com/get-docker/).
 
 ```bash
 git clone https://github.com/morgen-so/clawdboard-oss.git
 cd clawdboard
 npm install
-cp .env.example .env.local
+npm run db:setup    # starts Postgres, pushes schema, seeds sample data
+npm run dev         # http://localhost:3001 — sign in as dev-alice
 ```
 
-Fill in `.env.local` with your values (see `.env.example` for all variables).
+No secrets, no Neon account, no GitHub OAuth app needed for local dev.
 
-Push the database schema:
+### Self-Hosting / Production
+
+For production, set these environment variables (see `.env.example`):
+
+- **DATABASE_URL** — [Neon](https://neon.tech) connection string (or any Postgres)
+- **AUTH_SECRET** — `openssl rand -base64 32`
+- **AUTH_GITHUB_ID / AUTH_GITHUB_SECRET** — [GitHub OAuth App](https://github.com/settings/developers) with callback `https://your-domain/api/auth/callback/github`
+
+Push the schema and create the materialized view:
 
 ```bash
-export DATABASE_URL="your-connection-string"
 npx drizzle-kit push
-```
-
-Start the dev server:
-
-```bash
-npm run dev
-```
-
-The app runs on [localhost:3001](http://localhost:3001).
-
-Create the materialized view for rank snapshots:
-
-```
-GET http://localhost:3001/api/cron/refresh
+curl http://localhost:3001/api/cron/refresh
 ```
 
 ## Project Structure
