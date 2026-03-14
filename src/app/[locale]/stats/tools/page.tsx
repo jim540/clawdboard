@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { env } from "@/lib/env";
 import { Header } from "@/components/layout/Header";
 import {
+  getCommunityStatsCached,
   getSourceDetailStatsCached,
   getSourceComparisonTrendsCached,
   getSourceModelBreakdownCached,
@@ -60,9 +61,12 @@ function formatDate(dateStr: string): string {
 // ─── Metadata ───────────────────────────────────────────────────────────────
 
 export async function generateMetadata(): Promise<Metadata> {
-  const breakdown = await getSourceBreakdown();
+  const [breakdown, communityStats] = await Promise.all([
+    getSourceBreakdown(),
+    getCommunityStatsCached(),
+  ]);
   const activeTools = getActiveTools(breakdown);
-  const totalUsers = breakdown.reduce((s, b) => s + b.userCount, 0);
+  const totalUsers = communityStats.totalUsers;
   const totalCost = breakdown.reduce((s, b) => s + b.totalCost, 0);
 
   const vsNames = toolVsList(activeTools);
@@ -108,6 +112,8 @@ export default async function ToolsPage() {
   const breakdown = await getSourceBreakdown();
   const activeTools = getActiveTools(breakdown);
 
+  const communityStats = await getCommunityStatsCached();
+
   const [comparisonTrends, ...toolDetails] = await Promise.all([
     getSourceComparisonTrendsCached(),
     ...activeTools.map((t) => getSourceDetailStatsCached(t.slug)),
@@ -124,7 +130,7 @@ export default async function ToolsPage() {
 
   const totalCost = breakdown.reduce((s, b) => s + b.totalCost, 0);
   const totalTokens = breakdown.reduce((s, b) => s + b.totalTokens, 0);
-  const totalUsers = breakdown.reduce((s, b) => s + b.userCount, 0);
+  const totalUsers = communityStats.totalUsers;
   const toolCount = activeTools.length;
   const listNames = toolNameList(activeTools);
 
@@ -262,10 +268,10 @@ export default async function ToolsPage() {
         }
       />
 
-      <main className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <main className="relative z-10 mx-auto max-w-5xl px-4 py-12 sm:px-6">
         {/* ── Breadcrumb ─────────────────────────────────────────────── */}
         <nav
-          className="mb-6 font-mono text-xs text-muted"
+          className="mb-8 font-mono text-xs text-muted"
           aria-label="Breadcrumb"
         >
           <ol className="flex items-center gap-1.5">
@@ -292,7 +298,7 @@ export default async function ToolsPage() {
         <StatsNav />
 
         {/* ── Hero ─────────────────────────────────────────────────── */}
-        <div className="mb-10">
+        <div className="mb-14">
           <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
             <span className="text-accent mr-2">&gt;</span>
             {t("heroTitle")}
@@ -343,7 +349,7 @@ export default async function ToolsPage() {
         </div>
 
         {/* ── Community totals ──────────────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="totals-heading">
+        <section className="mb-14" aria-labelledby="totals-heading">
           <h2
             id="totals-heading"
             className="text-xl font-semibold text-foreground mb-1"
@@ -375,7 +381,7 @@ export default async function ToolsPage() {
         </section>
 
         {/* ── Cost share bar ─────────────────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="share-heading">
+        <section className="mb-14" aria-labelledby="share-heading">
           <h2
             id="share-heading"
             className="text-xl font-semibold text-foreground mb-1"
@@ -432,7 +438,7 @@ export default async function ToolsPage() {
         </section>
 
         {/* ── Per-tool cards ────────────────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="tools-heading">
+        <section className="mb-14" aria-labelledby="tools-heading">
           <h2
             id="tools-heading"
             className="text-xl font-semibold text-foreground mb-1"
@@ -581,7 +587,7 @@ export default async function ToolsPage() {
         </section>
 
         {/* ── Daily cost trends ────────────────────────────────────── */}
-        <section className="mb-12" aria-labelledby="trends-heading">
+        <section className="mb-16" aria-labelledby="trends-heading">
           <h2
             id="trends-heading"
             className="text-xl font-semibold text-foreground mb-1"
@@ -604,7 +610,7 @@ export default async function ToolsPage() {
           return (
             <section
               key={tool.slug}
-              className="mb-10"
+              className="mb-14"
               aria-labelledby={`${tool.slug}-models-heading`}
             >
               <h2
@@ -625,11 +631,11 @@ export default async function ToolsPage() {
         })}
 
         {/* ── Divider: data zone → analysis zone ─────────────────── */}
-        <div className="border-t border-border my-14" />
+        <div className="border-t border-border my-20" />
 
         {/* ── Analysis ─────────────────────────────────────────────── */}
         <section
-          className="mb-10 rounded-lg border border-border bg-surface p-6"
+          className="mb-14 rounded-lg border border-border bg-surface p-6"
           aria-labelledby="analysis-heading"
         >
           <h2
