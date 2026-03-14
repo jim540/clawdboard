@@ -229,6 +229,21 @@ export async function GET(req: NextRequest) {
         AND da.source IS NULL
     `);
 
+    // Reset earned badges for all affected users so they get recomputed
+    // from corrected data on next profile visit. Only runs when dupes were
+    // actually cleaned up (effectively one-time). The badge computation
+    // sets isFirstComputation=true when earnedBadges is empty, which
+    // suppresses the unlock modal — so users won't get spammed.
+    let badgesReset = 0;
+    if ((legacyDupes.rowCount ?? 0) > 0) {
+      const resetResult = await db.execute(sql`
+        UPDATE users SET earned_badges = '[]'::jsonb
+        WHERE earned_badges IS NOT NULL
+          AND earned_badges != '[]'::jsonb
+      `);
+      badgesReset = resetResult.rowCount ?? 0;
+    }
+
     // Data retention cleanup
     const expiredCodes = await db.execute(sql`
       DELETE FROM device_codes WHERE expires_at < NOW()
@@ -243,6 +258,7 @@ export async function GET(req: NextRequest) {
       snapshotsCaptured,
       cleanup: {
         legacyNullSourceRows: legacyDupes.rowCount ?? 0,
+        badgesReset,
         expiredDeviceCodes: expiredCodes.rowCount ?? 0,
         oldPageVisits: oldVisits.rowCount ?? 0,
       },
