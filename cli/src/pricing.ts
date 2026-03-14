@@ -1,0 +1,118 @@
+/**
+ * Model pricing table for cost calculation.
+ *
+ * Used to calculate costs from token counts when the source data
+ * doesn't include cost (e.g., OpenCode message files always have cost: 0).
+ *
+ * Prices are per 1M tokens in USD. Only the most common models are included;
+ * unknown models fall back to a default rate.
+ *
+ * Sources: Anthropic and OpenAI published pricing pages.
+ */
+
+export interface ModelPricing {
+  input: number; // USD per 1M input tokens
+  output: number; // USD per 1M output tokens
+  cacheWrite: number; // USD per 1M cache creation tokens (0 if N/A)
+  cacheRead: number; // USD per 1M cache read tokens (0 if N/A)
+}
+
+/**
+ * Pricing table keyed by model ID prefix.
+ * Lookups strip date suffixes (e.g., "claude-sonnet-4-20250514" → "claude-sonnet-4").
+ */
+const PRICING_TABLE: Record<string, ModelPricing> = {
+  // Anthropic Claude 4 family
+  "claude-opus-4": { input: 15, output: 75, cacheWrite: 18.75, cacheRead: 1.5 },
+  "claude-sonnet-4": { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 },
+
+  // Anthropic Claude 3.5 family
+  "claude-3-5-sonnet": { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 },
+  "claude-3-5-haiku": { input: 0.8, output: 4, cacheWrite: 1, cacheRead: 0.08 },
+
+  // Anthropic Claude 3 family
+  "claude-3-opus": { input: 15, output: 75, cacheWrite: 18.75, cacheRead: 1.5 },
+  "claude-3-sonnet": { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 },
+  "claude-3-haiku": { input: 0.25, output: 1.25, cacheWrite: 0.3, cacheRead: 0.03 },
+
+  // OpenAI GPT-4o family
+  "gpt-4o": { input: 2.5, output: 10, cacheWrite: 0, cacheRead: 1.25 },
+  "gpt-4o-mini": { input: 0.15, output: 0.6, cacheWrite: 0, cacheRead: 0.075 },
+
+  // OpenAI o-series
+  "o1": { input: 15, output: 60, cacheWrite: 0, cacheRead: 7.5 },
+  "o1-mini": { input: 3, output: 12, cacheWrite: 0, cacheRead: 1.5 },
+  "o3": { input: 10, output: 40, cacheWrite: 0, cacheRead: 5 },
+  "o3-mini": { input: 1.1, output: 4.4, cacheWrite: 0, cacheRead: 0.55 },
+  "o4-mini": { input: 1.1, output: 4.4, cacheWrite: 0, cacheRead: 0.55 },
+
+  // Google Gemini
+  "gemini-2.5-pro": { input: 1.25, output: 10, cacheWrite: 0, cacheRead: 0 },
+  "gemini-2.5-flash": { input: 0.15, output: 0.6, cacheWrite: 0, cacheRead: 0 },
+  "gemini-2.0-flash": { input: 0.1, output: 0.4, cacheWrite: 0, cacheRead: 0 },
+};
+
+/** Fallback pricing for unrecognized models — conservative mid-range estimate. */
+const DEFAULT_PRICING: ModelPricing = {
+  input: 3,
+  output: 15,
+  cacheWrite: 3.75,
+  cacheRead: 0.3,
+};
+
+/**
+ * Normalize a model ID by stripping the date suffix.
+ * "claude-sonnet-4-20250514" → "claude-sonnet-4"
+ * "gpt-4o-2024-08-06" → "gpt-4o"
+ */
+function normalizeModelId(modelId: string): string {
+  // Strip trailing date suffix: -YYYYMMDD or -YYYY-MM-DD
+  return modelId.replace(/-\d{4}-?\d{2}-?\d{2}$/, "");
+}
+
+/**
+ * Look up pricing for a model ID.
+ * Tries exact match on normalized ID, then progressively shorter prefixes.
+ */
+export function getModelPricing(modelId: string): ModelPricing {
+  const normalized = normalizeModelId(modelId);
+
+  // Exact match
+  if (PRICING_TABLE[normalized]) {
+    return PRICING_TABLE[normalized];
+  }
+
+  // Try progressively shorter prefixes (e.g., "claude-3-5-sonnet-v2" → "claude-3-5-sonnet")
+  const parts = normalized.split("-");
+  for (let i = parts.length - 1; i >= 2; i--) {
+    const prefix = parts.slice(0, i).join("-");
+    if (PRICING_TABLE[prefix]) {
+      return PRICING_TABLE[prefix];
+    }
+  }
+
+  return DEFAULT_PRICING;
+}
+
+/**
+ * Calculate cost from token counts and model ID.
+ * Returns cost in USD.
+ */
+export function calculateCost(
+  modelId: string,
+  tokens: {
+    input: number;
+    output: number;
+    cacheCreation: number;
+    cacheRead: number;
+  }
+): number {
+  const pricing = getModelPricing(modelId);
+
+  return (
+    (tokens.input * pricing.input) / 1_000_000 +
+    (tokens.output * pricing.output) / 1_000_000 +
+    (tokens.cacheCreation * pricing.cacheWrite) / 1_000_000 +
+    (tokens.cacheRead * pricing.cacheRead) / 1_000_000
+  );
+}

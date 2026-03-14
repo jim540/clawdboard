@@ -1,0 +1,36 @@
+{
+  "name": "clawdboard-opencode",
+  "version": "0.1.0",
+  "description": "clawdboard plugin for OpenCode — track your AI coding usage on the leaderboard",
+  "type": "module",
+  "main": "src/index.ts",
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "clawdboard",
+    "leaderboard",
+    "usage",
+    "ai",
+    "developer-tools"
+  ],
+  "author": {
+    "name": "clawdboard",
+    "url": "https://clawdboard.ai"
+  },
+  "homepage": "https://clawdboard.ai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/morgen-so/clawdboard-oss.git",
+    "directory": "opencode-plugin"
+  },
+  "peerDependencies": {
+    "opencode": ">=1.0.0"
+  },
+  "dependencies": {
+    "clawdboard": ">=0.2.0"
+  }
+}
