@@ -12,7 +12,10 @@ import { CommunityTrendChart } from "@/components/stats/CommunityTrendChart";
 import { ModelShareChart } from "@/components/stats/ModelShareChart";
 import { GrowthChart } from "@/components/stats/GrowthChart";
 import { SourceBreakdownChart } from "@/components/stats/SourceBreakdownChart";
-import { CopyIconButton } from "@/components/leaderboard/CopyIconButton";
+import { StatCard } from "@/components/stats/StatCard";
+import { ChartCard } from "@/components/stats/ChartCard";
+import { StatsFaq } from "@/components/stats/StatsFaq";
+import { StatsCta } from "@/components/stats/StatsCta";
 import { friendlyModelName } from "@/lib/chart-utils";
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
@@ -243,8 +246,24 @@ export default async function StatsPage() {
       />
 
       <main className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {/* ── H1: page title + intro ──────────────────────────────────────── */}
-        <div className="mb-8">
+        {/* ── Breadcrumb ───────────────────────────────────────────────── */}
+        <nav
+          className="mb-6 font-mono text-xs text-muted"
+          aria-label="Breadcrumb"
+        >
+          <ol className="flex items-center gap-1.5">
+            <li>
+              <Link href="/" className="hover:text-accent transition-colors">
+                clawdboard
+              </Link>
+            </li>
+            <li className="text-dim">/</li>
+            <li className="text-foreground">stats</li>
+          </ol>
+        </nav>
+
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <div className="mb-10">
           <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
             <span className="text-accent mr-2">&gt;</span>
             AI Coding Usage Statistics
@@ -258,12 +277,44 @@ export default async function StatsPage() {
             <Link href="/" className="text-accent hover:underline">
               clawdboard
             </Link>
-            . Tracks Claude Code, OpenCode, and Codex CLI usage.
-            All cost figures are estimates based on published
+            . All cost figures are estimates based on published
             API token pricing — not actual bills. Data covers all usage since
             January 2024.
           </p>
-          <p className="mt-1 font-mono text-[11px] text-dim">
+          {/* Data summary for LLM crawlers — visually hidden */}
+          <span className="sr-only">
+            As of {lastUpdated.split(",").slice(0, 2).join(",")},{" "}
+            {stats.totalUsers.toLocaleString()} developers have tracked{" "}
+            {formatCurrency(totalCost)} in estimated AI coding spend and{" "}
+            {formatNumber(stats.totalTokens)} tokens on clawdboard.
+            The average developer has spent an estimated{" "}
+            {formatCurrency(avgCost)} (median: {formatCurrency(medianCost)}).
+            {topModel && (
+              <> The most-used model by cost share is{" "}
+              {topModelName} at {topModel.costShare}% of total spend.{" "}
+              </>
+            )}
+            {sourceBreakdown.length > 1 && (
+              <>Usage is tracked across{" "}
+              {sourceBreakdown
+                .sort((a, b) => b.totalCost - a.totalCost)
+                .map((s) => {
+                  const labels: Record<string, string> = {
+                    "claude-code": "Claude Code",
+                    opencode: "OpenCode",
+                    codex: "Codex CLI",
+                  };
+                  return labels[s.source] ?? s.source;
+                })
+                .join(", ")
+                .replace(/, ([^,]*)$/, ", and $1")}
+              .{" "}
+              </>
+            )}
+            The longest active streak is {stats.longestStreak} consecutive days.
+            Data is updated hourly from opt-in developer usage logs.
+          </span>
+          <p className="mt-2 font-mono text-[11px] text-dim">
             Last updated: {lastUpdated} &middot; Refreshed hourly &middot;{" "}
             <a
               href={`${BASE_URL}/api/stats`}
@@ -276,9 +327,10 @@ export default async function StatsPage() {
           </p>
         </div>
 
-        {/* ── Community overview cards ─────────────────────────────────────── */}
+        {/* ── Community overview cards ─────────────────────────────────── */}
         <section className="mb-10" aria-labelledby="overview-heading">
-          <h2 id="overview-heading" className="text-lg font-semibold text-foreground mb-1">
+          <h2 id="overview-heading" className="text-xl font-semibold text-foreground mb-1">
+            <span className="text-accent mr-1.5">&gt;</span>
             Community Overview
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -291,6 +343,7 @@ export default async function StatsPage() {
               label="Total Community Spend"
               value={formatCurrency(totalCost)}
               sub={`across ${stats.totalUsers.toLocaleString()} developers`}
+              accent
             />
             <StatCard
               label="Total Tokens Consumed"
@@ -336,9 +389,10 @@ export default async function StatsPage() {
           </div>
         </section>
 
-        {/* ── Daily usage trends ──────────────────────────────────────────── */}
+        {/* ── Daily usage trends ──────────────────────────────────────── */}
         <section className="mb-10" aria-labelledby="trends-heading">
-          <h2 id="trends-heading" className="text-lg font-semibold text-foreground mb-1">
+          <h2 id="trends-heading" className="text-xl font-semibold text-foreground mb-1">
+            <span className="text-accent mr-1.5">&gt;</span>
             Daily AI Coding Usage Trends
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -347,12 +401,15 @@ export default async function StatsPage() {
             user count over the last {trends.length} days. Spikes often
             correspond to new model releases or major tool updates.
           </p>
-          <CommunityTrendChart data={trends} />
+          <ChartCard>
+            <CommunityTrendChart data={trends} />
+          </ChartCard>
         </section>
 
-        {/* ── Model breakdown ─────────────────────────────────────────────── */}
+        {/* ── Model breakdown ─────────────────────────────────────────── */}
         <section className="mb-10" aria-labelledby="models-heading">
-          <h2 id="models-heading" className="text-lg font-semibold text-foreground mb-1">
+          <h2 id="models-heading" className="text-xl font-semibold text-foreground mb-1">
+            <span className="text-accent mr-1.5">&gt;</span>
             AI Model Popularity by Cost Share
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -364,12 +421,15 @@ export default async function StatsPage() {
             more per token, so they can dominate spend even with fewer users.
             Click any model for detailed usage statistics.
           </p>
-          <ModelShareChart data={models} linkToModelPages />
+          <ChartCard>
+            <ModelShareChart data={models} linkToModelPages />
+          </ChartCard>
         </section>
 
-        {/* ── Source breakdown ─────────────────────────────────────────────── */}
+        {/* ── Source breakdown ─────────────────────────────────────────── */}
         <section className="mb-10" aria-labelledby="source-heading">
-          <h2 id="source-heading" className="text-lg font-semibold text-foreground mb-1">
+          <h2 id="source-heading" className="text-xl font-semibold text-foreground mb-1">
+            <span className="text-accent mr-1.5">&gt;</span>
             Usage by Tool: Claude Code vs OpenCode vs Codex
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -377,12 +437,20 @@ export default async function StatsPage() {
             share across the three supported AI coding tools. Each tool reads
             local usage logs and contributes to the aggregate statistics.
           </p>
-          <SourceBreakdownChart data={sourceBreakdown} />
+          <ChartCard>
+            <SourceBreakdownChart data={sourceBreakdown} />
+          </ChartCard>
+          <p className="mt-3 font-mono text-xs text-muted">
+            <Link href="/stats/tools" className="text-accent hover:underline">
+              View detailed tool comparison &rarr;
+            </Link>
+          </p>
         </section>
 
-        {/* ── Community growth ────────────────────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="growth-heading">
-          <h2 id="growth-heading" className="text-lg font-semibold text-foreground mb-1">
+        {/* ── Community growth ────────────────────────────────────────── */}
+        <section className="mb-12" aria-labelledby="growth-heading">
+          <h2 id="growth-heading" className="text-xl font-semibold text-foreground mb-1">
+            <span className="text-accent mr-1.5">&gt;</span>
             Community Growth
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -391,10 +459,15 @@ export default async function StatsPage() {
             accelerates around major model releases, new tool launches, and
             developer announcements.
           </p>
-          <GrowthChart data={growth} />
+          <ChartCard>
+            <GrowthChart data={growth} />
+          </ChartCard>
         </section>
 
-        {/* ── Analysis: How much does AI coding cost? ──────────────────────── */}
+        {/* ── Divider: data zone → analysis zone ─────────────────────── */}
+        <div className="border-t border-border my-14" />
+
+        {/* ── Analysis: How much does AI coding cost? ────────────────── */}
         <section
           className="mb-10 rounded-lg border border-border bg-surface p-6"
           aria-labelledby="cost-heading"
@@ -465,7 +538,7 @@ export default async function StatsPage() {
           </div>
         </section>
 
-        {/* ── Data methodology ────────────────────────────────────────────── */}
+        {/* ── Data methodology ────────────────────────────────────────── */}
         <section
           className="mb-10 rounded-lg border border-border bg-surface p-6"
           aria-labelledby="methodology-heading"
@@ -527,7 +600,7 @@ export default async function StatsPage() {
           </div>
         </section>
 
-        {/* ── Public API ──────────────────────────────────────────────────── */}
+        {/* ── Public API ──────────────────────────────────────────────── */}
         <section
           className="mb-10 rounded-lg border border-border bg-surface p-6"
           aria-labelledby="api-heading"
@@ -574,117 +647,23 @@ GET ${BASE_URL}/api/leaderboard?period=7d&sort=cost&limit=10`}</code>
           </div>
         </section>
 
-        {/* ── FAQ section with FAQPage schema ─────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="faq-heading">
-          <h2
-            id="faq-heading"
-            className="text-lg font-semibold text-foreground mb-1"
-          >
-            Frequently Asked Questions About AI Coding Usage
-          </h2>
-          <p className="font-mono text-xs text-muted mb-6">
-            Common questions about AI coding costs, model usage, and how this
-            data is collected.
-          </p>
+        {/* ── FAQ section with FAQPage schema ─────────────────────────── */}
+        <StatsFaq
+          heading="Frequently Asked Questions About AI Coding Usage"
+          description="Common questions about AI coding costs, model usage, and how this data is collected."
+          faqs={faqs}
+        />
 
-          <div className="space-y-2">
-            {faqs.map((faq, i) => (
-              <details
-                key={i}
-                className="group rounded-lg border border-border bg-surface overflow-hidden"
-              >
-                <summary className="flex cursor-pointer items-center gap-2 px-5 py-4 font-display text-sm font-semibold text-foreground select-none hover:bg-surface-hover transition-colors [&::-webkit-details-marker]:hidden list-none">
-                  <span className="text-accent font-mono text-xs shrink-0">
-                    [{String(i + 1).padStart(2, "0")}]
-                  </span>
-                  <span className="flex-1">{faq.q}</span>
-                  <svg
-                    className="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-open:rotate-180"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </summary>
-                <div className="border-t border-border px-5 py-4">
-                  <p className="font-mono text-xs leading-relaxed text-muted pl-8">
-                    {faq.a}
-                  </p>
-                </div>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        {/* ── CTA ─────────────────────────────────────────────────────────── */}
-        <section
-          className="rounded-lg border border-accent/30 bg-accent/5 p-6 text-center"
-          aria-labelledby="cta-heading"
-        >
-          <h2
-            id="cta-heading"
-            className="font-display text-lg font-bold text-foreground mb-2"
-          >
-            Track Your Own AI Coding Usage
-          </h2>
-          <p className="font-mono text-sm text-muted mb-4">
-            Join {stats.totalUsers.toLocaleString()} developers on the
-            leaderboard. Free, open-source, takes 30 seconds to set up.
-          </p>
-
-          {/* Command + copy */}
-          <div className="flex items-center justify-center gap-2 mb-5">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 font-mono text-sm">
-              <span className="text-dim/60 select-none">$</span>
-              <code className="text-foreground/80">npx clawdboard auth</code>
-              <CopyIconButton text="npx clawdboard auth" />
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 font-mono text-sm font-semibold text-background transition-colors hover:bg-accent/90"
-            >
-              View Leaderboard
-            </Link>
-            <Link
-              href="/faq"
-              className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 font-mono text-sm text-muted transition-colors hover:text-foreground hover:border-foreground/20"
-            >
-              How It Works
-            </Link>
-          </div>
-        </section>
+        {/* ── CTA ─────────────────────────────────────────────────────── */}
+        <StatsCta
+          heading="Track Your Own AI Coding Usage"
+          description={`Join ${stats.totalUsers.toLocaleString()} developers on the leaderboard. Free, open-source, takes 30 seconds to set up.`}
+          primaryLabel="View Leaderboard"
+          primaryHref="/"
+          secondaryLabel="How It Works"
+          secondaryHref="/faq"
+        />
       </main>
-    </div>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1">
-        {label}
-      </p>
-      <p className="font-display text-xl font-bold text-foreground sm:text-2xl">
-        {value}
-      </p>
-      <p className="font-mono text-[11px] text-dim mt-0.5">{sub}</p>
     </div>
   );
 }

@@ -10,7 +10,10 @@ import {
   getDistinctModelSlugsCached,
 } from "@/lib/db/cached";
 import { ModelTrendChart } from "@/components/stats/ModelTrendChart";
-import { CopyIconButton } from "@/components/leaderboard/CopyIconButton";
+import { StatCard } from "@/components/stats/StatCard";
+import { ChartCard } from "@/components/stats/ChartCard";
+import { StatsFaq } from "@/components/stats/StatsFaq";
+import { StatsCta } from "@/components/stats/StatsCta";
 import { friendlyModelName } from "@/lib/chart-utils";
 import { getModelSeoMeta } from "@/lib/models";
 
@@ -243,6 +246,13 @@ export default async function ModelPage({ params }: PageProps) {
     timeZoneName: "short",
   });
 
+  // Tier badge colors
+  const tierColors: Record<string, string> = {
+    flagship: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+    fast: "text-blue-400 border-blue-400/30 bg-blue-400/10",
+    efficient: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
+  };
+
   return (
     <div className="relative min-h-screen bg-background">
       <script
@@ -271,7 +281,7 @@ export default async function ModelPage({ params }: PageProps) {
       />
 
       <main className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {/* ── Breadcrumb ─────────────────────────────────────────────────── */}
+        {/* ── Breadcrumb ─────────────────────────────────────────────── */}
         <nav className="mb-6 font-mono text-xs text-muted" aria-label="Breadcrumb">
           <ol className="flex items-center gap-1.5">
             <li>
@@ -290,12 +300,21 @@ export default async function ModelPage({ params }: PageProps) {
           </ol>
         </nav>
 
-        {/* ── H1 + intro ─────────────────────────────────────────────────── */}
-        <div className="mb-8">
-          <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-            <span className="text-accent mr-2">&gt;</span>
-            {displayName} Usage Statistics
-          </h1>
+        {/* ── Hero ─────────────────────────────────────────────────── */}
+        <div className="mb-10">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
+              <span className="text-accent mr-2">&gt;</span>
+              {displayName} Usage Statistics
+            </h1>
+            {seo.tier && tierColors[seo.tier] && (
+              <span
+                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${tierColors[seo.tier]}`}
+              >
+                {seo.tier}
+              </span>
+            )}
+          </div>
           <p className="mt-2 font-mono text-sm leading-relaxed text-muted max-w-3xl">
             Real usage data for{" "}
             <strong className="text-foreground">{displayName}</strong> from{" "}
@@ -310,7 +329,26 @@ export default async function ModelPage({ params }: PageProps) {
             estimated from token counts and published {seo.provider} API
             pricing.
           </p>
-          <p className="mt-1 font-mono text-[11px] text-dim">
+          {/* Data summary for LLM crawlers — visually hidden */}
+          <span className="sr-only">
+            As of {lastUpdated.split(",").slice(0, 2).join(",")},{" "}
+            {displayName} ranks #{rank} out of {totalModels} tracked AI coding
+            models on clawdboard, accounting for {detail.costShare}% of total
+            community spend. {detail.userCount.toLocaleString()} developer
+            {detail.userCount !== 1 ? "s have" : " has"} used {displayName},{" "}
+            generating {formatCurrency(totalCost)} in estimated API cost and{" "}
+            {formatTokens(detail.totalTokens)} tokens
+            ({formatTokens(detail.inputTokens)} input,{" "}
+            {formatTokens(detail.outputTokens)} output).
+            The average estimated cost per developer is{" "}
+            {formatCurrency(avgCost)} (median: {formatCurrency(medianCost)}).
+            {detail.firstSeen && (
+              <> {displayName} has been tracked on clawdboard since{" "}
+              {formatDate(detail.firstSeen)}.</>
+            )}{" "}
+            Data is updated hourly from opt-in developer usage logs.
+          </span>
+          <p className="mt-2 font-mono text-[11px] text-dim">
             Last updated: {lastUpdated} &middot; Refreshed hourly
             {detail.firstSeen && (
               <> &middot; Tracked since {formatDate(detail.firstSeen)}</>
@@ -318,12 +356,13 @@ export default async function ModelPage({ params }: PageProps) {
           </p>
         </div>
 
-        {/* ── Key metrics ────────────────────────────────────────────────── */}
+        {/* ── Key metrics — headline row ──────────────────────────── */}
         <section className="mb-10" aria-labelledby="overview-heading">
           <h2
             id="overview-heading"
-            className="text-lg font-semibold text-foreground mb-1"
+            className="text-xl font-semibold text-foreground mb-1"
           >
+            <span className="text-accent mr-1.5">&gt;</span>
             {displayName} at a Glance
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -336,6 +375,7 @@ export default async function ModelPage({ params }: PageProps) {
               label="Total Estimated Cost"
               value={formatCurrency(totalCost)}
               sub={`${detail.costShare}% of community spend`}
+              accent
             />
             <StatCard
               label="Total Tokens"
@@ -354,6 +394,10 @@ export default async function ModelPage({ params }: PageProps) {
             />
           </div>
 
+          {/* Detail metrics row — separated with label */}
+          <p className="font-mono text-[10px] uppercase tracking-wider text-dim mt-5 mb-2">
+            Detailed breakdown
+          </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard
               label="Avg Cost per Developer"
@@ -382,12 +426,13 @@ export default async function ModelPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* ── Daily usage trends ─────────────────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="trends-heading">
+        {/* ── Daily usage trends ─────────────────────────────────── */}
+        <section className="mb-12" aria-labelledby="trends-heading">
           <h2
             id="trends-heading"
-            className="text-lg font-semibold text-foreground mb-1"
+            className="text-xl font-semibold text-foreground mb-1"
           >
+            <span className="text-accent mr-1.5">&gt;</span>
             {displayName} Daily Usage Trends
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
@@ -396,10 +441,15 @@ export default async function ModelPage({ params }: PageProps) {
             cost and active user count. Spikes often correspond to new
             version releases or pricing changes.
           </p>
-          <ModelTrendChart data={trends} modelName={displayName} />
+          <ChartCard>
+            <ModelTrendChart data={trends} modelName={displayName} />
+          </ChartCard>
         </section>
 
-        {/* ── Token breakdown ────────────────────────────────────────────── */}
+        {/* ── Divider: data zone → analysis zone ─────────────────── */}
+        <div className="border-t border-border my-14" />
+
+        {/* ── Token breakdown ────────────────────────────────────── */}
         <section
           className="mb-10 rounded-lg border border-border bg-surface p-6"
           aria-labelledby="tokens-heading"
@@ -484,7 +534,7 @@ export default async function ModelPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* ── Cost analysis ──────────────────────────────────────────────── */}
+        {/* ── Cost analysis ──────────────────────────────────────── */}
         <section
           className="mb-10 rounded-lg border border-border bg-surface p-6"
           aria-labelledby="cost-heading"
@@ -532,13 +582,14 @@ export default async function ModelPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* ── Related models ─────────────────────────────────────────────── */}
+        {/* ── Related models ─────────────────────────────────────── */}
         {relatedModels.length > 0 && (
           <section className="mb-10" aria-labelledby="related-heading">
             <h2
               id="related-heading"
-              className="text-lg font-semibold text-foreground mb-1"
+              className="text-xl font-semibold text-foreground mb-1"
             >
+              <span className="text-accent mr-1.5">&gt;</span>
               Other {seo.provider} Models
             </h2>
             <p className="font-mono text-xs text-muted mb-4">
@@ -550,6 +601,7 @@ export default async function ModelPage({ params }: PageProps) {
                 const mSlug = m.modelName.replace(/-\d{6,8}$/, "");
                 const mName = friendlyModelName(m.modelName);
                 const mCost = parseFloat(m.totalCost);
+                const mSeo = getModelSeoMeta(mSlug);
                 return (
                   <Link
                     key={m.modelName}
@@ -557,9 +609,18 @@ export default async function ModelPage({ params }: PageProps) {
                     className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:border-accent/40 hover:bg-surface-hover"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-mono text-sm font-medium text-foreground truncate">
-                        {mName}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-sm font-medium text-foreground truncate">
+                          {mName}
+                        </p>
+                        {mSeo.tier && tierColors[mSeo.tier] && (
+                          <span
+                            className={`shrink-0 rounded-full border px-1.5 py-0 font-mono text-[9px] uppercase tracking-wider ${tierColors[mSeo.tier]}`}
+                          >
+                            {mSeo.tier}
+                          </span>
+                        )}
+                      </div>
                       <p className="font-mono text-xs text-muted">
                         {formatCurrency(mCost)} &middot; {m.costShare}% of
                         spend &middot; {m.userCount}{" "}
@@ -574,114 +635,23 @@ export default async function ModelPage({ params }: PageProps) {
           </section>
         )}
 
-        {/* ── FAQ ────────────────────────────────────────────────────────── */}
-        <section className="mb-10" aria-labelledby="faq-heading">
-          <h2
-            id="faq-heading"
-            className="text-lg font-semibold text-foreground mb-1"
-          >
-            {displayName} FAQ
-          </h2>
-          <p className="font-mono text-xs text-muted mb-6">
-            Common questions about {displayName} usage, cost, and
-            performance data.
-          </p>
+        {/* ── FAQ ────────────────────────────────────────────────── */}
+        <StatsFaq
+          heading={`${displayName} FAQ`}
+          description={`Common questions about ${displayName} usage, cost, and performance data.`}
+          faqs={faqs}
+        />
 
-          <div className="space-y-2">
-            {faqs.map((faq, i) => (
-              <details
-                key={i}
-                className="group rounded-lg border border-border bg-surface overflow-hidden"
-              >
-                <summary className="flex cursor-pointer items-center gap-2 px-5 py-4 font-display text-sm font-semibold text-foreground select-none hover:bg-surface-hover transition-colors [&::-webkit-details-marker]:hidden list-none">
-                  <span className="text-accent font-mono text-xs shrink-0">
-                    [{String(i + 1).padStart(2, "0")}]
-                  </span>
-                  <span className="flex-1">{faq.q}</span>
-                  <svg
-                    className="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-open:rotate-180"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </summary>
-                <div className="border-t border-border px-5 py-4">
-                  <p className="font-mono text-xs leading-relaxed text-muted pl-8">
-                    {faq.a}
-                  </p>
-                </div>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        {/* ── CTA ────────────────────────────────────────────────────────── */}
-        <section
-          className="rounded-lg border border-accent/30 bg-accent/5 p-6 text-center"
-          aria-labelledby="cta-heading"
-        >
-          <h2
-            id="cta-heading"
-            className="font-display text-lg font-bold text-foreground mb-2"
-          >
-            Track Your {displayName} Usage
-          </h2>
-          <p className="font-mono text-sm text-muted mb-4">
-            See how your {displayName} usage compares. Free, open-source,
-            takes 30 seconds.
-          </p>
-          <div className="flex items-center justify-center gap-2 mb-5">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 font-mono text-sm">
-              <span className="text-dim/60 select-none">$</span>
-              <code className="text-foreground/80">npx clawdboard auth</code>
-              <CopyIconButton text="npx clawdboard auth" />
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 font-mono text-sm font-semibold text-background transition-colors hover:bg-accent/90"
-            >
-              View Leaderboard
-            </Link>
-            <Link
-              href="/stats"
-              className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 font-mono text-sm text-muted transition-colors hover:text-foreground hover:border-foreground/20"
-            >
-              All Model Statistics
-            </Link>
-          </div>
-        </section>
+        {/* ── CTA ────────────────────────────────────────────────── */}
+        <StatsCta
+          heading={`Track Your ${displayName} Usage`}
+          description={`See how your ${displayName} usage compares. Free, open-source, takes 30 seconds.`}
+          primaryLabel="View Leaderboard"
+          primaryHref="/"
+          secondaryLabel="All Model Statistics"
+          secondaryHref="/stats"
+        />
       </main>
-    </div>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1">
-        {label}
-      </p>
-      <p className="font-display text-xl font-bold text-foreground sm:text-2xl">
-        {value}
-      </p>
-      <p className="font-mono text-[11px] text-dim mt-0.5">{sub}</p>
     </div>
   );
 }
