@@ -28,6 +28,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Ensure source column exists on daily_aggregates (idempotent migration)
+    await db.execute(sql`
+      ALTER TABLE daily_aggregates ADD COLUMN IF NOT EXISTS source TEXT
+    `);
+    // Migrate unique constraint from (user_id, date) to (user_id, date, source)
+    await db.execute(sql`
+      DROP INDEX IF EXISTS daily_user_date_idx
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS daily_user_date_source_idx
+      ON daily_aggregates (user_id, date, source)
+    `);
+
     // Recreate the materialized view (drop first to pick up schema changes)
     await db.execute(sql`DROP MATERIALIZED VIEW IF EXISTS leaderboard_mv`);
     await db.execute(sql`

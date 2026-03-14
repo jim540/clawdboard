@@ -30,6 +30,10 @@ const ModelBreakdownSchema = z.object({
  */
 export const SyncDaySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  source: z
+    .enum(["claude-code", "opencode", "codex"])
+    .nullable()
+    .optional(),
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   cacheCreationTokens: z.number().int().nonnegative(),

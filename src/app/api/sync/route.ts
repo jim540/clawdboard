@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
           .values({
             userId: user.id,
             date: day.date,
+            source: day.source ?? null,
             inputTokens: day.inputTokens,
             outputTokens: day.outputTokens,
             cacheCreationTokens: day.cacheCreationTokens,
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
             modelBreakdowns: day.modelBreakdowns,
           })
           .onConflictDoUpdate({
-            target: [dailyAggregates.userId, dailyAggregates.date],
+            target: [dailyAggregates.userId, dailyAggregates.date, dailyAggregates.source],
             set: {
               inputTokens: day.inputTokens,
               outputTokens: day.outputTokens,

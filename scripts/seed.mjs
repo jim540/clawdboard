@@ -87,13 +87,15 @@ for (const u of seedUsers) {
 }
 console.log(`  Created ${seedUsers.length} users`);
 
-// ─── Seed daily aggregates (30 days of usage) ───────────────────────────────
+// ─── Seed daily aggregates (30 days of usage, with source tracking) ──────────
 
 const models = [
   "claude-sonnet-4-20250514",
   "claude-opus-4-20250514",
   "claude-haiku-4-20250506",
 ];
+
+const sources = ["claude-code", "opencode", "codex"];
 
 console.log("Seeding daily aggregates...");
 let aggregateCount = 0;
@@ -103,61 +105,75 @@ for (const user of seedUsers) {
   const activityRate = 0.5 + Math.random() * 0.5; // 50-100% of days active
   const spendMultiplier = 0.5 + Math.random() * 4; // varies per user
 
+  // Each user uses 1-3 sources with varying probability
+  const userSourceCount = 1 + Math.floor(Math.random() * sources.length);
+  const userSources = sources.slice(0, userSourceCount);
+
   for (let daysAgo = 0; daysAgo < 30; daysAgo++) {
     if (Math.random() > activityRate) continue;
 
     const date = dateStr(daysAgo);
-    const inputTokens = Math.floor(50000 + Math.random() * 200000);
-    const outputTokens = Math.floor(10000 + Math.random() * 80000);
-    const cacheCreationTokens = Math.floor(Math.random() * 30000);
-    const cacheReadTokens = Math.floor(Math.random() * 100000);
 
-    // Rough cost calculation (in dollars)
-    const cost = (
-      (inputTokens * 0.003 +
-        outputTokens * 0.015 +
-        cacheCreationTokens * 0.00375 +
-        cacheReadTokens * 0.0003) /
-        1000 *
-        spendMultiplier
-    ).toFixed(4);
+    for (const source of userSources) {
+      // Not every source is used every active day
+      if (source !== "claude-code" && Math.random() > 0.4) continue;
 
-    const usedModels = models.slice(
-      0,
-      1 + Math.floor(Math.random() * models.length)
-    );
+      // Scale down secondary sources
+      const sourceScale = source === "claude-code" ? 1.0 : 0.3 + Math.random() * 0.4;
 
-    const breakdowns = usedModels.map((modelName, i) => {
-      const share = i === 0 ? 0.6 : 0.4 / (usedModels.length - 1 || 1);
-      return {
-        modelName,
-        inputTokens: Math.floor(inputTokens * share),
-        outputTokens: Math.floor(outputTokens * share),
-        cacheCreationTokens: Math.floor(cacheCreationTokens * share),
-        cacheReadTokens: Math.floor(cacheReadTokens * share),
-        cost: parseFloat((parseFloat(cost) * share).toFixed(4)),
-      };
-    });
+      const inputTokens = Math.floor((50000 + Math.random() * 200000) * sourceScale);
+      const outputTokens = Math.floor((10000 + Math.random() * 80000) * sourceScale);
+      const cacheCreationTokens = Math.floor(Math.random() * 30000 * sourceScale);
+      const cacheReadTokens = Math.floor(Math.random() * 100000 * sourceScale);
 
-    await client.query(
-      `INSERT INTO daily_aggregates
-       (id, user_id, date, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_cost, models_used, model_breakdowns, synced_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-       ON CONFLICT (user_id, date) DO NOTHING`,
-      [
-        uuid(),
-        user.id,
-        date,
-        inputTokens,
-        outputTokens,
-        cacheCreationTokens,
-        cacheReadTokens,
-        cost,
-        JSON.stringify(usedModels),
-        JSON.stringify(breakdowns),
-      ]
-    );
-    aggregateCount++;
+      // Rough cost calculation (in dollars)
+      const cost = (
+        (inputTokens * 0.003 +
+          outputTokens * 0.015 +
+          cacheCreationTokens * 0.00375 +
+          cacheReadTokens * 0.0003) /
+          1000 *
+          spendMultiplier
+      ).toFixed(4);
+
+      const usedModels = models.slice(
+        0,
+        1 + Math.floor(Math.random() * models.length)
+      );
+
+      const breakdowns = usedModels.map((modelName, i) => {
+        const share = i === 0 ? 0.6 : 0.4 / (usedModels.length - 1 || 1);
+        return {
+          modelName,
+          inputTokens: Math.floor(inputTokens * share),
+          outputTokens: Math.floor(outputTokens * share),
+          cacheCreationTokens: Math.floor(cacheCreationTokens * share),
+          cacheReadTokens: Math.floor(cacheReadTokens * share),
+          cost: parseFloat((parseFloat(cost) * share).toFixed(4)),
+        };
+      });
+
+      await client.query(
+        `INSERT INTO daily_aggregates
+         (id, user_id, date, source, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_cost, models_used, model_breakdowns, synced_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+         ON CONFLICT (user_id, date, source) DO NOTHING`,
+        [
+          uuid(),
+          user.id,
+          date,
+          source,
+          inputTokens,
+          outputTokens,
+          cacheCreationTokens,
+          cacheReadTokens,
+          cost,
+          JSON.stringify(usedModels),
+          JSON.stringify(breakdowns),
+        ]
+      );
+      aggregateCount++;
+    }
   }
 }
 console.log(`  Created ${aggregateCount} daily aggregate rows`);

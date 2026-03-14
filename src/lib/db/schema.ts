@@ -75,6 +75,7 @@ export const dailyAggregates = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     date: text("date").notNull(), // "YYYY-MM-DD"
+    source: text("source"), // "claude-code" | "opencode" | "codex" | null (legacy)
     inputTokens: bigint("input_tokens", { mode: "number" }).default(0),
     outputTokens: bigint("output_tokens", { mode: "number" }).default(0),
     cacheCreationTokens: bigint("cache_creation_tokens", {
@@ -98,7 +99,7 @@ export const dailyAggregates = pgTable(
     syncedAt: timestamp("synced_at").defaultNow(),
   },
   (table) => [
-    uniqueIndex("daily_user_date_idx").on(table.userId, table.date),
+    uniqueIndex("daily_user_date_source_idx").on(table.userId, table.date, table.source),
   ]
 );
 

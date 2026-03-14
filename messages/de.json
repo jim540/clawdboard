@@ -19,6 +19,10 @@
     "signin": {
       "title": "Anmelden",
       "description": "Melde dich bei clawdboard mit GitHub an"
+    },
+    "stats": {
+      "title": "Community-Statistiken",
+      "description": "Nutzungsstatistiken und Quellenverteilung der clawdboard-Community"
     }
   },
   "common": {
@@ -387,5 +391,10 @@
     "a15": "Es ist ein Claude Code Plugin, das die Slash-Befehle /sync, /stats und /leaderboard direkt in Claude Code hinzufugt. Es synchronisiert auch automatisch deine Nutzung alle 2 Stunden uber einen Hintergrund-Hook -- damit deine Statistiken ohne manuellen Aufwand aktuell bleiben.",
     "q16": "Wie installiere ich das Plugin?",
     "a16": "Installiere es von GitHub, indem du \"claude plugin add --from https://github.com/jim540/clawdboard-plugin\" in deinem Terminal ausfuhrst. Du brauchst zuerst ein kostenloses clawdboard-Konto -- melde dich auf clawdboard.ai mit GitHub an und fuhre dann \"npx clawdboard auth\" aus, um deinen Rechner zu verknupfen."
+  },
+  "stats": {
+    "heading": "Community-Statistiken",
+    "sourceBreakdown": "Nutzung nach Quelle",
+    "noSourceData": "Noch keine Quellendaten verfugbar"
   }
 }

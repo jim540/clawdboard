@@ -18,11 +18,15 @@ import { SyncPayloadSchema, type SyncPayload } from "./schemas.js";
  * @returns A clean SyncPayload with only allowlisted fields
  * @throws ZodError if the sanitized data fails schema validation
  */
-export function sanitizeDailyData(raw: unknown[]): SyncPayload {
+export function sanitizeDailyData(
+  raw: unknown[],
+  source?: "claude-code" | "opencode" | "codex" | null
+): SyncPayload {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const days = (raw as any[]).map((day) => ({
     // ALLOWLISTED day-level fields only
     date: day.date,
+    source: source ?? day.source ?? null,
     inputTokens: day.inputTokens,
     outputTokens: day.outputTokens,
     cacheCreationTokens: day.cacheCreationTokens,
@@ -83,5 +87,6 @@ export async function extractAndSanitize(
   const raw = await loadDailyUsageData(options as Parameters<typeof loadDailyUsageData>[0]);
 
   // Pass through privacy allowlist and Zod validation
-  return sanitizeDailyData(raw as unknown[]);
+  // Tag as "claude-code" source since ccusage reads Claude Code logs
+  return sanitizeDailyData(raw as unknown[], "claude-code");
 }
