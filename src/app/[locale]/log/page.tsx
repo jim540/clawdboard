@@ -144,7 +144,7 @@ export default function LogPage() {
 
                             {/* Optional image */}
                             {item.image && (
-                              <div className="mt-4 overflow-hidden rounded-lg border border-border-bright">
+                              <div className="mt-4 max-w-md overflow-hidden rounded-lg border border-border-bright">
                                 <Image
                                   src={item.image}
                                   alt={item.title}
