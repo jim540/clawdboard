@@ -177,6 +177,7 @@ export function RecapStories({ recap, onClose }: RecapStoriesProps) {
                 )}
                 {currentSlide === 4 && (
                   <SlideShare
+                    recapId={recap.id}
                     data={data}
                     type={recap.type}
                     periodStart={recap.periodStart}

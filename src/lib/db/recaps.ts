@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { recaps } from "./schema";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, gt } from "drizzle-orm";
 import type { RecapData } from "./schema";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -21,9 +21,11 @@ export interface RecapRow {
 
 /**
  * Get unseen recaps for a user, most recent first.
- * Only returns the latest unseen recap (by design — no stacking).
+ * Only returns the latest unseen recap created within the last 72 hours.
+ * After 72h the banner disappears; recaps remain accessible on the profile page.
  */
 export async function getUnseenRecaps(userId: string): Promise<RecapRow[]> {
+  const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
   return db
     .select({
       id: recaps.id,
@@ -35,7 +37,13 @@ export async function getUnseenRecaps(userId: string): Promise<RecapRow[]> {
       createdAt: recaps.createdAt,
     })
     .from(recaps)
-    .where(and(eq(recaps.userId, userId), isNull(recaps.seenAt)))
+    .where(
+      and(
+        eq(recaps.userId, userId),
+        isNull(recaps.seenAt),
+        gt(recaps.createdAt, cutoff)
+      )
+    )
     .orderBy(desc(recaps.createdAt))
     .limit(1);
 }

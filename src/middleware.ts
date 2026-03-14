@@ -20,5 +20,5 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|dev|.*\\..*).*)"],
+  matcher: ["/((?!api|_next|dev|opengraph-image|.*\\..*).*)"],
 };

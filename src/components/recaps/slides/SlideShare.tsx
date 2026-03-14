@@ -8,6 +8,7 @@ import {
 } from "@/lib/share";
 
 interface SlideShareProps {
+  recapId: string;
   data: RecapData;
   type: string;
   periodStart: string;
@@ -74,7 +75,7 @@ function CheckIcon() {
 const actionBtn =
   "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors text-xs font-mono cursor-pointer";
 
-export function SlideShare({ data, type, periodStart, periodEnd }: SlideShareProps) {
+export function SlideShare({ recapId, data, type, periodStart, periodEnd }: SlideShareProps) {
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -85,7 +86,7 @@ export function SlideShare({ data, type, periodStart, periodEnd }: SlideSharePro
   const dateRange = `${s.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })} \u2013 ${e.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
 
   const shareText = `${periodLabel} recap: Rank #${data.rank} | ${formatCurrency(data.totalCost)} spent vibecoding`;
-  const shareUrl = "https://clawdboard.ai";
+  const shareUrl = `https://clawdboard.ai/recap/${recapId}`;
 
   const handleDownload = async () => {
     if (!cardRef.current || downloading) return;
@@ -98,6 +99,9 @@ export function SlideShare({ data, type, periodStart, periodEnd }: SlideSharePro
         height: 400,
         pixelRatio: 2,
         cacheBust: true,
+        style: {
+          transform: "none",
+        },
       });
       const link = document.createElement("a");
       link.download = `clawdboard-recap-${periodStart}.png`;
