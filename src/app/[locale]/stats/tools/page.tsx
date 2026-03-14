@@ -15,84 +15,12 @@ import { ChartCard } from "@/components/stats/ChartCard";
 import { StatsFaq } from "@/components/stats/StatsFaq";
 import { StatsCta } from "@/components/stats/StatsCta";
 import { friendlyModelName } from "@/lib/chart-utils";
+import { type ToolMeta, getToolMeta, getActiveTools, toolNameList } from "@/lib/tools";
+import { getTranslations } from "next-intl/server";
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
 
 export const revalidate = 3600;
-
-// ─── Tool metadata ──────────────────────────────────────────────────────────
-
-interface ToolMeta {
-  slug: string;
-  name: string;
-  color: string;
-  provider: string;
-  description: string;
-  website: string;
-}
-
-const TOOL_REGISTRY: Record<string, ToolMeta> = {
-  "claude-code": {
-    slug: "claude-code",
-    name: "Claude Code",
-    color: "#F9A615",
-    provider: "Anthropic",
-    description:
-      "Anthropic's official CLI for Claude. An agentic coding assistant that works directly in your terminal with full access to your codebase.",
-    website: "https://claude.ai/claude-code",
-  },
-  opencode: {
-    slug: "opencode",
-    name: "OpenCode",
-    color: "#3b82f6",
-    provider: "Community",
-    description:
-      "An open-source terminal-based AI coding assistant that supports multiple LLM providers. Designed as a flexible alternative with provider-agnostic model support.",
-    website: "https://github.com/opencode-ai/opencode",
-  },
-  codex: {
-    slug: "codex",
-    name: "Codex CLI",
-    color: "#10b981",
-    provider: "OpenAI",
-    description:
-      "OpenAI's command-line coding agent that uses GPT-4o and o-series models. Brings OpenAI's models to the terminal for code generation and editing.",
-    website: "https://github.com/openai/codex",
-  },
-};
-
-const FALLBACK_COLOR = "#6366f1";
-
-function getToolMeta(slug: string): ToolMeta {
-  return (
-    TOOL_REGISTRY[slug] ?? {
-      slug,
-      name: slug,
-      color: FALLBACK_COLOR,
-      provider: "Unknown",
-      description: `An AI coding tool tracked on clawdboard.`,
-      website: "",
-    }
-  );
-}
-
-/** Build ordered list of tools from live breakdown data, sorted by cost desc */
-function getActiveTools(
-  breakdown: { source: string; totalCost: number }[]
-): ToolMeta[] {
-  return [...breakdown]
-    .sort((a, b) => b.totalCost - a.totalCost)
-    .map((b) => getToolMeta(b.source));
-}
-
-/** Format tool names as "A, B, and C" or "A and B" etc. */
-function toolNameList(tools: ToolMeta[]): string {
-  const names = tools.map((t) => t.name);
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
-}
 
 /** Format tool names as "A vs B vs C" */
 function toolVsList(tools: ToolMeta[]): string {
@@ -171,57 +99,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// ─── FAQ data ───────────────────────────────────────────────────────────────
-
-function getToolsFaqs(
-  breakdown: Awaited<ReturnType<typeof getSourceBreakdown>>,
-  activeTools: ToolMeta[]
-) {
-  const totalUsers = breakdown.reduce((s, b) => s + b.userCount, 0);
-  const totalCost = breakdown.reduce((s, b) => s + b.totalCost, 0);
-  const sorted = [...breakdown].sort((a, b) => b.totalCost - a.totalCost);
-  const topSource = sorted[0];
-  const topTool = topSource ? getToolMeta(topSource.source) : activeTools[0];
-  const toolCount = activeTools.length;
-  const listNames = toolNameList(activeTools);
-
-  // Build a summary like "Claude Code (Anthropic's CLI), OpenCode (open-source), and Codex CLI (OpenAI's agent)"
-  const toolSummary = activeTools
-    .map((t) => `${t.name} (${t.provider})`)
-    .join(", ")
-    .replace(/, ([^,]*)$/, ", and $1");
-
-  return [
-    {
-      q: "What AI coding tools does clawdboard track?",
-      a: `clawdboard tracks usage from ${toolCount} AI coding tool${toolCount !== 1 ? "s" : ""}: ${toolSummary}. Each tool's usage is tracked separately, allowing side-by-side comparison of cost, token usage, and model preferences.`,
-    },
-    {
-      q: "Which AI coding tool is most popular?",
-      a: `Based on data from ${totalUsers} developers, ${topTool?.name ?? "the leading tool"} leads with ${topSource ? formatCurrency(topSource.totalCost) : "$0"} in estimated API cost (${topSource && totalCost > 0 ? ((topSource.totalCost / totalCost) * 100).toFixed(1) : "0"}% of total spend). Popularity is measured by estimated cost, which reflects total usage volume weighted by model pricing.`,
-    },
-    {
-      q: "How does clawdboard track usage across different tools?",
-      a: `The clawdboard CLI reads local log files from each supported tool on a developer's machine. ${listNames} all maintain local usage logs. The CLI extracts token counts and model identifiers from these logs and syncs aggregate data to clawdboard. No code, prompts, or conversation content is collected.`,
-    },
-    {
-      q: "Can I use multiple AI coding tools with clawdboard?",
-      a: `Yes. If you use multiple supported tools, the clawdboard CLI will detect and sync usage from all installed tools. Your profile page shows a breakdown by tool, and the leaderboard aggregates your total spend across all tools.`,
-    },
-    {
-      q: "How are costs estimated for different tools?",
-      a: "All costs are estimated from token counts and published API pricing for each model. Usage is priced at the respective provider's rates (Anthropic, OpenAI, etc.). These are API-equivalent estimates — most developers pay flat subscription fees.",
-    },
-    {
-      q: "How often is tool comparison data updated?",
-      a: "Individual developers sync their usage every 2 hours by default. The aggregate statistics on this page are recalculated hourly. New tools are added to tracking as they gain community adoption.",
-    },
-  ];
-}
-
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default async function ToolsPage() {
+  const t = await getTranslations("statsTools");
   const breakdown = await getSourceBreakdown();
   const activeTools = getActiveTools(breakdown);
 
@@ -254,7 +135,47 @@ export default async function ToolsPage() {
       share: totalCost > 0 ? ((b.totalCost / totalCost) * 100).toFixed(1) : "0",
     }));
 
-  const faqs = getToolsFaqs(breakdown, activeTools);
+  // Build tool summary for FAQ
+  const toolSummary = activeTools
+    .map((tool) => `${tool.name} (${tool.provider})`)
+    .join(", ")
+    .replace(/, ([^,]*)$/, ", and $1");
+
+  const sorted = [...breakdown].sort((a, b) => b.totalCost - a.totalCost);
+  const topSource = sorted[0];
+  const topTool = topSource ? getToolMeta(topSource.source) : activeTools[0];
+
+  const faqs = [
+    {
+      q: t("faqQ1"),
+      a: t("faqA1", { toolCount, toolSummary }),
+    },
+    {
+      q: t("faqQ2"),
+      a: t("faqA2", {
+        totalUsers,
+        topToolName: topTool?.name ?? "the leading tool",
+        topToolCost: topSource ? formatCurrency(topSource.totalCost) : "$0",
+        topToolShare: topSource && totalCost > 0 ? ((topSource.totalCost / totalCost) * 100).toFixed(1) : "0",
+      }),
+    },
+    {
+      q: t("faqQ3"),
+      a: t("faqA3", { toolList: listNames }),
+    },
+    {
+      q: t("faqQ4"),
+      a: t("faqA4"),
+    },
+    {
+      q: t("faqQ5"),
+      a: t("faqA5"),
+    },
+    {
+      q: t("faqQ6"),
+      a: t("faqA6"),
+    },
+  ];
 
   const lastUpdated = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -328,13 +249,13 @@ export default async function ToolsPage() {
       />
 
       <Header
-        subtitle="tool comparison"
+        subtitle={t("subtitle")}
         rightContent={
           <Link
             href="/stats"
             className="font-mono text-xs text-muted transition-colors hover:text-accent"
           >
-            &larr; all stats
+            {t("backToAllStats")}
           </Link>
         }
       />
@@ -348,7 +269,7 @@ export default async function ToolsPage() {
           <ol className="flex items-center gap-1.5">
             <li>
               <Link href="/" className="hover:text-accent transition-colors">
-                clawdboard
+                {t("breadcrumbHome")}
               </Link>
             </li>
             <li className="text-dim">/</li>
@@ -357,11 +278,11 @@ export default async function ToolsPage() {
                 href="/stats"
                 className="hover:text-accent transition-colors"
               >
-                stats
+                {t("breadcrumbStats")}
               </Link>
             </li>
             <li className="text-dim">/</li>
-            <li className="text-foreground">tools</li>
+            <li className="text-foreground">{t("breadcrumbTools")}</li>
           </ol>
         </nav>
 
@@ -369,27 +290,29 @@ export default async function ToolsPage() {
         <div className="mb-10">
           <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
             <span className="text-accent mr-2">&gt;</span>
-            AI Coding Tool Comparison
+            {t("heroTitle")}
           </h1>
           <p className="mt-2 font-mono text-sm leading-relaxed text-muted max-w-3xl">
-            Side-by-side comparison of{" "}
-            {activeTools.map((tool, i) => (
-              <span key={tool.slug}>
-                {i > 0 && i < activeTools.length - 1 && ", "}
-                {i > 0 && i === activeTools.length - 1 && ", and "}
-                <strong className="text-foreground">{tool.name}</strong>
-              </span>
-            ))}{" "}
-            usage from{" "}
-            <strong className="text-foreground">
-              {totalUsers.toLocaleString()} developers
-            </strong>{" "}
-            on{" "}
-            <Link href="/" className="text-accent hover:underline">
-              clawdboard
-            </Link>
-            . All costs are estimated from token counts and published API
-            pricing.
+            {t.rich("heroDescription", {
+              toolList: activeTools.map((tool, i) => {
+                const prefix =
+                  i > 0 && i === activeTools.length - 1
+                    ? ", and "
+                    : i > 0
+                      ? ", "
+                      : "";
+                return prefix + tool.name;
+              }).join(""),
+              totalUsers: totalUsers.toLocaleString(),
+              strong: (chunks) => (
+                <strong className="text-foreground">{chunks}</strong>
+              ),
+              link: (chunks) => (
+                <Link href="/" className="text-accent hover:underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
           {/* Data summary for LLM crawlers — visually hidden */}
           <span className="sr-only">
@@ -398,19 +321,19 @@ export default async function ToolsPage() {
             {formatCurrency(totalCost)} in estimated AI coding spend and{" "}
             {formatTokens(totalTokens)} tokens across {toolCount} tool
             {toolCount !== 1 ? "s" : ""} on clawdboard.{" "}
-            {rankedTools.map((t, i) => (
-              <span key={t.slug}>
+            {rankedTools.map((rt, i) => (
+              <span key={rt.slug}>
                 {i === 0
-                  ? `${t.name} leads with ${t.share}% of total spend (${formatCurrency(t.cost)})`
+                  ? `${rt.name} leads with ${rt.share}% of total spend (${formatCurrency(rt.cost)})`
                   : i < rankedTools.length - 1
-                    ? `, followed by ${t.name} at ${t.share}% (${formatCurrency(t.cost)})`
-                    : `, and ${t.name} at ${t.share}% (${formatCurrency(t.cost)})`}
+                    ? `, followed by ${rt.name} at ${rt.share}% (${formatCurrency(rt.cost)})`
+                    : `, and ${rt.name} at ${rt.share}% (${formatCurrency(rt.cost)})`}
               </span>
             ))}
             . Data is updated hourly from opt-in developer usage logs.
           </span>
           <p className="mt-2 font-mono text-[11px] text-dim">
-            Last updated: {lastUpdated} &middot; Refreshed hourly
+            {t("lastUpdated", { lastUpdated })} &middot; {t("refreshedHourly")}
           </p>
         </div>
 
@@ -421,27 +344,27 @@ export default async function ToolsPage() {
             className="text-xl font-semibold text-foreground mb-1"
           >
             <span className="text-accent mr-1.5">&gt;</span>
-            Community Totals
+            {t("totalsHeading")}
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
-            Aggregate usage across all tracked AI coding tools.
+            {t("totalsDescription")}
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatCard
-              label="Total Estimated Cost"
+              label={t("totalEstimatedCost")}
               value={formatCurrency(totalCost)}
-              sub="across all tools"
+              sub={t("totalEstimatedCostSub")}
               accent
             />
             <StatCard
-              label="Total Tokens"
+              label={t("totalTokens")}
               value={formatTokens(totalTokens)}
-              sub="processed across all tools"
+              sub={t("totalTokensSub")}
             />
             <StatCard
-              label="Tools Tracked"
+              label={t("toolsTracked")}
               value={String(toolCount)}
-              sub={`AI coding tool${toolCount !== 1 ? "s" : ""}`}
+              sub={t("toolsTrackedSub", { count: toolCount })}
             />
           </div>
         </section>
@@ -453,10 +376,10 @@ export default async function ToolsPage() {
             className="text-xl font-semibold text-foreground mb-1"
           >
             <span className="text-accent mr-1.5">&gt;</span>
-            Cost Share by Tool
+            {t("costShareHeading")}
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
-            How is AI coding spend distributed across tools?
+            {t("costShareDescription")}
           </p>
           <div className="rounded-lg border border-border bg-surface p-6">
             {totalCost > 0 && (
@@ -510,10 +433,10 @@ export default async function ToolsPage() {
             className="text-xl font-semibold text-foreground mb-1"
           >
             <span className="text-accent mr-1.5">&gt;</span>
-            Tool Breakdown
+            {t("toolBreakdownHeading")}
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
-            Usage, cost, and adoption metrics for each tracked tool.
+            {t("toolBreakdownDescription")}
           </p>
           <div className="space-y-4">
             {activeTools.map((tool, i) => {
@@ -560,27 +483,27 @@ export default async function ToolsPage() {
                   <div className="p-5">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
                       <StatCard
-                        label="Estimated Cost"
+                        label={t("estimatedCost")}
                         value={formatCurrency(cost)}
-                        sub={`${detail.costShare}% of total`}
+                        sub={t("costShareOfTotal", { costShare: detail.costShare })}
                       />
                       <StatCard
-                        label="Total Tokens"
+                        label={t("totalTokensLabel")}
                         value={formatTokens(detail.totalTokens)}
-                        sub={`${formatTokens(detail.inputTokens)} in / ${formatTokens(detail.outputTokens)} out`}
+                        sub={t("tokenBreakdown", { input: formatTokens(detail.inputTokens), output: formatTokens(detail.outputTokens) })}
                       />
                       <StatCard
-                        label="Developers"
+                        label={t("developers")}
                         value={detail.userCount.toLocaleString()}
-                        sub={`avg: ${formatCurrency(avgCost)} / med: ${formatCurrency(medianCost)}`}
+                        sub={t("developerStats", { avg: formatCurrency(avgCost), med: formatCurrency(medianCost) })}
                       />
                       <StatCard
-                        label="Active Days"
+                        label={t("activeDays")}
                         value={detail.activeDays.toLocaleString()}
                         sub={
                           detail.firstSeen
-                            ? `since ${formatDate(detail.firstSeen)}`
-                            : "tracked"
+                            ? t("activeDaysSince", { date: formatDate(detail.firstSeen) })
+                            : t("activeDaysTracked")
                         }
                       />
                     </div>
@@ -619,7 +542,7 @@ export default async function ToolsPage() {
                     {topModels.length > 0 && (
                       <div>
                         <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-2">
-                          Top models
+                          {t("topModels")}
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {topModels.map((m) => {
@@ -659,12 +582,10 @@ export default async function ToolsPage() {
             className="text-xl font-semibold text-foreground mb-1"
           >
             <span className="text-accent mr-1.5">&gt;</span>
-            Daily Cost Trends by Tool
+            {t("trendsHeading")}
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
-            How does daily estimated spend compare across{" "}
-            {toolNameList(activeTools)}? This chart shows the 7-day moving
-            average to smooth out daily variance.
+            {t("trendsDescription", { toolList: toolNameList(activeTools) })}
           </p>
           <ChartCard>
             <ToolComparisonChart data={comparisonTrends} />
@@ -686,11 +607,10 @@ export default async function ToolsPage() {
                 className="text-xl font-semibold text-foreground mb-1"
               >
                 <span className="text-accent mr-1.5">&gt;</span>
-                {tool.name} Model Breakdown
+                {t("modelBreakdownHeading", { toolName: tool.name })}
               </h2>
               <p className="font-mono text-xs text-muted mb-4">
-                Which models do {tool.name} users prefer? Cost share breakdown
-                across all models used through {tool.name}.
+                {t("modelBreakdownDescription", { toolName: tool.name })}
               </p>
               <ChartCard>
                 <ModelShareChart data={models} linkToModelPages />
@@ -711,12 +631,11 @@ export default async function ToolsPage() {
             id="analysis-heading"
             className="text-lg font-semibold text-foreground mb-3"
           >
-            AI Coding Tool Landscape
+            {t("analysisHeading")}
           </h2>
           <div className="space-y-3 font-mono text-sm leading-relaxed text-muted">
             <p>
-              The AI coding tool ecosystem is evolving rapidly. clawdboard
-              currently tracks {toolCount} tool{toolCount !== 1 ? "s" : ""}:{" "}
+              {t("analysisP1Start", { toolCount })}
               {activeTools.map((tool, i) => (
                 <span key={tool.slug}>
                   {i > 0 && i < activeTools.length - 1 && ", "}
@@ -729,58 +648,54 @@ export default async function ToolsPage() {
             </p>
             {rankedTools.length > 1 && (
               <p>
-                By estimated cost,{" "}
-                <strong className="text-foreground">
-                  {rankedTools[0].name}
-                </strong>{" "}
-                currently leads at {rankedTools[0].share}% of total spend,
-                followed by{" "}
-                {rankedTools.slice(1).map((t, i) => (
-                  <span key={t.slug}>
+                {t.rich("analysisCostRanking", {
+                  leadingTool: rankedTools[0].name,
+                  leadingShare: rankedTools[0].share,
+                  strong: (chunks) => (
+                    <strong className="text-foreground">{chunks}</strong>
+                  ),
+                })}
+                {rankedTools.slice(1).map((rt, i) => (
+                  <span key={rt.slug}>
                     {i > 0 &&
                       i < rankedTools.length - 2 &&
                       ", "}
                     {i > 0 &&
                       i === rankedTools.length - 2 &&
                       ", and "}
-                    <strong className="text-foreground">{t.name}</strong> (
-                    {t.share}%)
+                    <strong className="text-foreground">{rt.name}</strong> (
+                    {rt.share}%)
                   </span>
                 ))}
                 .
               </p>
             )}
             <p>
-              Cost share is influenced by both adoption (number of users) and
-              model pricing (higher-tier models cost more per token). A tool
-              with fewer users but more expensive models can have a larger cost
-              share than a widely-adopted tool using budget models.
+              {t("analysisCostExplanation")}
             </p>
             <p>
-              clawdboard is the only platform tracking real usage data across
               {toolCount > 1
-                ? ` all ${toolCount} tools side by side`
-                : " this tool"
-              }, providing a unique view of how
-              developers actually use AI coding assistants in practice.
+                ? t("analysisUniqueTracking", { toolCount })
+                : t("analysisUniqueTrackingSingle")
+              }
             </p>
           </div>
         </section>
 
         {/* ── FAQ ──────────────────────────────────────────────────── */}
         <StatsFaq
-          heading="AI Coding Tool FAQ"
-          description="Common questions about AI coding tool usage data and comparisons."
+          heading={t("faqHeading")}
+          description={t("faqDescription")}
           faqs={faqs}
         />
 
         {/* ── CTA ──────────────────────────────────────────────────── */}
         <StatsCta
-          heading="Track Your AI Coding Usage"
-          description={`Works with ${toolNameList(activeTools)}. Free, open-source, takes 30 seconds.`}
-          primaryLabel="View Leaderboard"
+          heading={t("ctaHeading")}
+          description={t("ctaDescription", { toolList: toolNameList(activeTools) })}
+          primaryLabel={t("ctaPrimaryLabel")}
           primaryHref="/"
-          secondaryLabel="All Statistics"
+          secondaryLabel={t("ctaSecondaryLabel")}
           secondaryHref="/stats"
         />
       </main>

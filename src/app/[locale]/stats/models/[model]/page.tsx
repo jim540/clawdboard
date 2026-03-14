@@ -16,6 +16,7 @@ import { StatsFaq } from "@/components/stats/StatsFaq";
 import { StatsCta } from "@/components/stats/StatsCta";
 import { friendlyModelName } from "@/lib/chart-utils";
 import { getModelSeoMeta } from "@/lib/models";
+import { getTranslations } from "next-intl/server";
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
 
@@ -104,45 +105,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-// ─── FAQ data ───────────────────────────────────────────────────────────────
-
-function getModelFaqs(
-  displayName: string,
-  detail: NonNullable<Awaited<ReturnType<typeof getModelDetailStatsCached>>>,
-  seo: ReturnType<typeof getModelSeoMeta>,
-  rank: number,
-  totalModels: number
-) {
-  const avgCost = formatCurrency(parseFloat(detail.avgCostPerUser));
-  const medianCost = formatCurrency(parseFloat(detail.medianCostPerUser));
-
-  return [
-    {
-      q: `How much does ${displayName} cost for coding?`,
-      a: `Based on data from ${detail.userCount} developers on clawdboard, the average estimated ${displayName} usage cost is ${avgCost} per developer (all-time). The median is ${medianCost}. These are estimated API-equivalent costs calculated from token counts and published ${seo.provider} pricing — most developers pay flat subscription fees, not per-token billing.`,
-    },
-    {
-      q: `How popular is ${displayName} compared to other AI coding models?`,
-      a: `${displayName} ranks #${rank} out of ${totalModels} tracked models by total estimated cost, accounting for ${detail.costShare}% of all community spend on clawdboard. ${detail.userCount} developers have used ${displayName}. Higher-tier models often dominate cost share even with fewer users due to higher per-token pricing.`,
-    },
-    {
-      q: `What is ${displayName} used for in coding?`,
-      a: `${displayName} is ${seo.description}. Developers use it through AI coding tools tracked by clawdboard — including Claude Code, OpenCode, and Codex CLI. The token ratio for ${displayName} is ${tokenRatio(detail.inputTokens, detail.outputTokens)}, indicating how developers interact with the model.`,
-    },
-    {
-      q: `Where does this ${displayName} usage data come from?`,
-      a: `All data comes from developers who voluntarily track their AI coding usage through clawdboard. The CLI reads local log files from supported tools on each developer's machine and extracts aggregate token counts and model identifiers. No code, prompts, or conversation content is collected — only token counts and estimated costs.`,
-    },
-    {
-      q: `How often is ${displayName} data updated?`,
-      a: `Individual developers sync their usage every 2 hours by default. The aggregate statistics on this page are recalculated hourly. ${displayName} has been tracked on clawdboard since ${detail.firstSeen ? formatDate(detail.firstSeen) : "it was first used by a community member"}.`,
-    },
-  ];
-}
-
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default async function ModelPage({ params }: PageProps) {
+  const t = await getTranslations("statsModel");
   const { model: slug } = await params;
 
   const [detail, trends, allModels] = await Promise.all([
@@ -185,7 +151,46 @@ export default async function ModelPage({ params }: PageProps) {
     ? totalCost / detail.totalTokens
     : 0;
 
-  const faqs = getModelFaqs(displayName, detail, seo, rank, totalModels);
+  const faqs = [
+    {
+      q: t("faqQ1", { modelName: displayName }),
+      a: t("faqA1", {
+        userCount: detail.userCount,
+        modelName: displayName,
+        avgCost: formatCurrency(avgCost),
+        medianCost: formatCurrency(medianCost),
+        provider: seo.provider,
+      }),
+    },
+    {
+      q: t("faqQ2", { modelName: displayName }),
+      a: t("faqA2", {
+        modelName: displayName,
+        rank,
+        totalModels,
+        costShare: detail.costShare,
+        userCount: detail.userCount,
+      }),
+    },
+    {
+      q: t("faqQ3", { modelName: displayName }),
+      a: t("faqA3", {
+        modelName: displayName,
+        modelDescription: seo.description,
+        tokenRatioText: tokenRatio(detail.inputTokens, detail.outputTokens),
+      }),
+    },
+    {
+      q: t("faqQ4", { modelName: displayName }),
+      a: t("faqA4"),
+    },
+    {
+      q: t("faqQ5", { modelName: displayName }),
+      a: detail.firstSeen
+        ? t("faqA5", { modelName: displayName, trackedSince: formatDate(detail.firstSeen) })
+        : t("faqA5NoDate", { modelName: displayName }),
+    },
+  ];
 
   // ─── JSON-LD ────────────────────────────────────────────────────────────────
 
@@ -269,13 +274,13 @@ export default async function ModelPage({ params }: PageProps) {
       />
 
       <Header
-        subtitle={`${displayName.toLowerCase()} statistics`}
+        subtitle={t("subtitle", { modelName: displayName.toLowerCase() })}
         rightContent={
           <Link
             href="/stats"
             className="font-mono text-xs text-muted transition-colors hover:text-accent"
           >
-            &larr; all models
+            {t("backToAllModels")}
           </Link>
         }
       />
@@ -286,13 +291,13 @@ export default async function ModelPage({ params }: PageProps) {
           <ol className="flex items-center gap-1.5">
             <li>
               <Link href="/" className="hover:text-accent transition-colors">
-                clawdboard
+                {t("breadcrumbHome")}
               </Link>
             </li>
             <li className="text-dim">/</li>
             <li>
               <Link href="/stats" className="hover:text-accent transition-colors">
-                stats
+                {t("breadcrumbStats")}
               </Link>
             </li>
             <li className="text-dim">/</li>
@@ -305,7 +310,7 @@ export default async function ModelPage({ params }: PageProps) {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
               <span className="text-accent mr-2">&gt;</span>
-              {displayName} Usage Statistics
+              {t("heroTitle", { modelName: displayName })}
             </h1>
             {seo.tier && tierColors[seo.tier] && (
               <span
@@ -316,18 +321,20 @@ export default async function ModelPage({ params }: PageProps) {
             )}
           </div>
           <p className="mt-2 font-mono text-sm leading-relaxed text-muted max-w-3xl">
-            Real usage data for{" "}
-            <strong className="text-foreground">{displayName}</strong> from{" "}
-            <strong className="text-foreground">
-              {detail.userCount.toLocaleString()} developers
-            </strong>{" "}
-            on{" "}
-            <Link href="/" className="text-accent hover:underline">
-              clawdboard
-            </Link>
-            . {displayName} is {seo.description}. All costs are
-            estimated from token counts and published {seo.provider} API
-            pricing.
+            {t.rich("heroDescription", {
+              modelName: displayName,
+              userCount: detail.userCount.toLocaleString(),
+              modelDescription: seo.description,
+              provider: seo.provider,
+              strong: (chunks) => (
+                <strong className="text-foreground">{chunks}</strong>
+              ),
+              link: (chunks) => (
+                <Link href="/" className="text-accent hover:underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
           {/* Data summary for LLM crawlers — visually hidden */}
           <span className="sr-only">
@@ -349,9 +356,9 @@ export default async function ModelPage({ params }: PageProps) {
             Data is updated hourly from opt-in developer usage logs.
           </span>
           <p className="mt-2 font-mono text-[11px] text-dim">
-            Last updated: {lastUpdated} &middot; Refreshed hourly
+            {t("lastUpdated", { lastUpdated })} &middot; {t("refreshedHourly")}
             {detail.firstSeen && (
-              <> &middot; Tracked since {formatDate(detail.firstSeen)}</>
+              <> &middot; {t("trackedSince", { date: formatDate(detail.firstSeen) })}</>
             )}
           </p>
         </div>
@@ -363,65 +370,64 @@ export default async function ModelPage({ params }: PageProps) {
             className="text-xl font-semibold text-foreground mb-1"
           >
             <span className="text-accent mr-1.5">&gt;</span>
-            {displayName} at a Glance
+            {t("overviewHeading", { modelName: displayName })}
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
-            Aggregate {displayName} usage across all {detail.userCount}{" "}
-            developers who have used this model.
+            {t("overviewDescription", { modelName: displayName, userCount: detail.userCount })}
           </p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
             <StatCard
-              label="Total Estimated Cost"
+              label={t("totalEstimatedCost")}
               value={formatCurrency(totalCost)}
-              sub={`${detail.costShare}% of community spend`}
+              sub={t("costShareSub", { costShare: detail.costShare })}
               accent
             />
             <StatCard
-              label="Total Tokens"
+              label={t("totalTokens")}
               value={formatTokens(detail.totalTokens)}
               sub={tokenRatio(detail.inputTokens, detail.outputTokens)}
             />
             <StatCard
-              label="Developers"
+              label={t("developersLabel")}
               value={detail.userCount.toLocaleString()}
-              sub={`using ${displayName}`}
+              sub={t("developersSub", { modelName: displayName })}
             />
             <StatCard
-              label="Model Rank"
+              label={t("modelRank")}
               value={`#${rank}`}
-              sub={`of ${totalModels} tracked models`}
+              sub={t("modelRankSub", { totalModels })}
             />
           </div>
 
           {/* Detail metrics row — separated with label */}
           <p className="font-mono text-[10px] uppercase tracking-wider text-dim mt-5 mb-2">
-            Detailed breakdown
+            {t("detailedBreakdown")}
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard
-              label="Avg Cost per Developer"
+              label={t("avgCostPerDeveloper")}
               value={formatCurrency(avgCost)}
-              sub={`median: ${formatCurrency(medianCost)}`}
+              sub={t("medianSub", { medianCost: formatCurrency(medianCost) })}
             />
             <StatCard
-              label="Input Tokens"
+              label={t("inputTokens")}
               value={formatTokens(detail.inputTokens)}
-              sub="prompt + context"
+              sub={t("inputTokensSub")}
             />
             <StatCard
-              label="Output Tokens"
+              label={t("outputTokens")}
               value={formatTokens(detail.outputTokens)}
-              sub="generated responses"
+              sub={t("outputTokensSub")}
             />
             <StatCard
-              label="Avg Cost per Token"
+              label={t("avgCostPerToken")}
               value={
                 costPerToken > 0
                   ? `$${costPerToken.toFixed(6)}`
                   : "—"
               }
-              sub="estimated blended rate"
+              sub={t("avgCostPerTokenSub")}
             />
           </div>
         </section>
@@ -433,13 +439,10 @@ export default async function ModelPage({ params }: PageProps) {
             className="text-xl font-semibold text-foreground mb-1"
           >
             <span className="text-accent mr-1.5">&gt;</span>
-            {displayName} Daily Usage Trends
+            {t("trendsHeading", { modelName: displayName })}
           </h2>
           <p className="font-mono text-xs text-muted mb-4">
-            How much are developers spending on {displayName} each day?
-            This chart shows the 7-day moving average of estimated daily
-            cost and active user count. Spikes often correspond to new
-            version releases or pricing changes.
+            {t("trendsDescription", { modelName: displayName })}
           </p>
           <ChartCard>
             <ModelTrendChart data={trends} modelName={displayName} />
@@ -458,45 +461,36 @@ export default async function ModelPage({ params }: PageProps) {
             id="tokens-heading"
             className="text-lg font-semibold text-foreground mb-3"
           >
-            {displayName} Token Breakdown
+            {t("tokenBreakdownHeading", { modelName: displayName })}
           </h2>
           <div className="space-y-3 font-mono text-sm leading-relaxed text-muted">
             <p>
-              Developers have consumed{" "}
-              <strong className="text-foreground">
-                {formatTokens(detail.totalTokens)} tokens
-              </strong>{" "}
-              through {displayName}, split between{" "}
-              <strong className="text-foreground">
-                {formatTokens(detail.inputTokens)} input tokens
-              </strong>{" "}
-              (prompts, context, files) and{" "}
-              <strong className="text-foreground">
-                {formatTokens(detail.outputTokens)} output tokens
-              </strong>{" "}
-              (generated code, explanations, edits).
+              {t.rich("tokenBreakdownP1", {
+                modelName: displayName,
+                totalTokens: formatTokens(detail.totalTokens),
+                inputTokens: formatTokens(detail.inputTokens),
+                outputTokens: formatTokens(detail.outputTokens),
+                strong: (chunks) => (
+                  <strong className="text-foreground">{chunks}</strong>
+                ),
+              })}
             </p>
             {(detail.cacheCreationTokens > 0 ||
               detail.cacheReadTokens > 0) && (
               <p>
-                Prompt caching has processed{" "}
-                <strong className="text-foreground">
-                  {formatTokens(detail.cacheCreationTokens)} cache creation
-                  tokens
-                </strong>{" "}
-                and{" "}
-                <strong className="text-foreground">
-                  {formatTokens(detail.cacheReadTokens)} cache read tokens
-                </strong>
-                . Cache reads are significantly cheaper per token, reducing the
-                effective cost for developers with repeated context.
+                {t.rich("tokenBreakdownCache", {
+                  cacheCreationTokens: formatTokens(detail.cacheCreationTokens),
+                  cacheReadTokens: formatTokens(detail.cacheReadTokens),
+                  strong: (chunks) => (
+                    <strong className="text-foreground">{chunks}</strong>
+                  ),
+                })}
               </p>
             )}
             <p>
-              The{" "}
               {detail.inputTokens > detail.outputTokens
-                ? "higher input-to-output ratio suggests developers send substantial context (files, documentation, error messages) along with their prompts"
-                : "higher output-to-input ratio suggests the model generates more content than it receives, typical for code generation and completion tasks"}
+                ? t("tokenRatioHighInput")
+                : t("tokenRatioHighOutput")}
               .
             </p>
 
@@ -522,11 +516,11 @@ export default async function ModelPage({ params }: PageProps) {
                 <div className="flex justify-between mt-1.5 text-[11px]">
                   <span className="flex items-center gap-1.5">
                     <span className="inline-block h-2 w-2 rounded-full bg-accent" />
-                    Input ({((detail.inputTokens / detail.totalTokens) * 100).toFixed(0)}%)
+                    {t("tokenBarInputLabel", { percent: ((detail.inputTokens / detail.totalTokens) * 100).toFixed(0) })}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-                    Output ({((detail.outputTokens / detail.totalTokens) * 100).toFixed(0)}%)
+                    {t("tokenBarOutputLabel", { percent: ((detail.outputTokens / detail.totalTokens) * 100).toFixed(0) })}
                   </span>
                 </div>
               </div>
@@ -543,41 +537,35 @@ export default async function ModelPage({ params }: PageProps) {
             id="cost-heading"
             className="text-lg font-semibold text-foreground mb-3"
           >
-            How Much Does {displayName} Cost for Coding?
+            {t("costAnalysisHeading", { modelName: displayName })}
           </h2>
           <div className="space-y-3 font-mono text-sm leading-relaxed text-muted">
             <p>
-              Based on data from {detail.userCount} developers, the
-              average estimated {displayName} usage cost is{" "}
-              <strong className="text-foreground">
-                {formatCurrency(avgCost)}
-              </strong>{" "}
-              per developer (all-time). The median is{" "}
-              <strong className="text-foreground">
-                {formatCurrency(medianCost)}
-              </strong>
-              , reflecting the gap between occasional and heavy {displayName}{" "}
-              users.
+              {t.rich("costAnalysisP1", {
+                userCount: detail.userCount,
+                modelName: displayName,
+                avgCost: formatCurrency(avgCost),
+                medianCost: formatCurrency(medianCost),
+                strong: (chunks) => (
+                  <strong className="text-foreground">{chunks}</strong>
+                ),
+              })}
             </p>
             <p>
-              {displayName} accounts for{" "}
-              <strong className="text-foreground">
-                {detail.costShare}% of total community spend
-              </strong>{" "}
-              across all {totalModels} tracked models, ranking{" "}
-              <strong className="text-foreground">#{rank}</strong> by estimated
-              cost.
-              {seo.tier === "flagship" &&
-                " As a flagship model, it commands a higher per-token price, which means it can dominate cost share even when other models see more total requests."}
-              {seo.tier === "fast" &&
-                " As a fast, cost-efficient model, it processes more requests per dollar, so its cost share may underrepresent actual usage volume."}
+              {t.rich("costAnalysisP2", {
+                modelName: displayName,
+                costShare: detail.costShare,
+                totalModels,
+                rank,
+                strong: (chunks) => (
+                  <strong className="text-foreground">{chunks}</strong>
+                ),
+              })}
+              {seo.tier === "flagship" && t("costAnalysisP2Flagship")}
+              {seo.tier === "fast" && t("costAnalysisP2Fast")}
             </p>
             <p>
-              These are estimated API-equivalent costs, not actual bills.
-              Most developers use {displayName} through subscription-based
-              tools (Claude Code, OpenCode, Codex CLI) with flat monthly
-              pricing. The estimated cost is useful for comparing usage
-              intensity across models and developers.
+              {t("costAnalysisP3", { modelName: displayName })}
             </p>
           </div>
         </section>
@@ -590,11 +578,10 @@ export default async function ModelPage({ params }: PageProps) {
               className="text-xl font-semibold text-foreground mb-1"
             >
               <span className="text-accent mr-1.5">&gt;</span>
-              Other {seo.provider} Models
+              {t("relatedModelsHeading", { provider: seo.provider })}
             </h2>
             <p className="font-mono text-xs text-muted mb-4">
-              Compare {displayName} with other {seo.provider} models tracked
-              on clawdboard.
+              {t("relatedModelsDescription", { modelName: displayName, provider: seo.provider })}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {relatedModels.map((m) => {
@@ -622,9 +609,7 @@ export default async function ModelPage({ params }: PageProps) {
                         )}
                       </div>
                       <p className="font-mono text-xs text-muted">
-                        {formatCurrency(mCost)} &middot; {m.costShare}% of
-                        spend &middot; {m.userCount}{" "}
-                        {m.userCount === 1 ? "user" : "users"}
+                        {formatCurrency(mCost)} &middot; {t("relatedModelSpend", { costShare: m.costShare })} &middot; {t("relatedModelUser", { count: m.userCount })}
                       </p>
                     </div>
                     <span className="text-muted text-xs">&rarr;</span>
@@ -637,18 +622,18 @@ export default async function ModelPage({ params }: PageProps) {
 
         {/* ── FAQ ────────────────────────────────────────────────── */}
         <StatsFaq
-          heading={`${displayName} FAQ`}
-          description={`Common questions about ${displayName} usage, cost, and performance data.`}
+          heading={t("faqHeading", { modelName: displayName })}
+          description={t("faqDescription", { modelName: displayName })}
           faqs={faqs}
         />
 
         {/* ── CTA ────────────────────────────────────────────────── */}
         <StatsCta
-          heading={`Track Your ${displayName} Usage`}
-          description={`See how your ${displayName} usage compares. Free, open-source, takes 30 seconds.`}
-          primaryLabel="View Leaderboard"
+          heading={t("ctaHeading", { modelName: displayName })}
+          description={t("ctaDescription", { modelName: displayName })}
+          primaryLabel={t("ctaPrimaryLabel")}
           primaryHref="/"
-          secondaryLabel="All Model Statistics"
+          secondaryLabel={t("ctaSecondaryLabel")}
           secondaryHref="/stats"
         />
       </main>
