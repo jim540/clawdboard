@@ -23,6 +23,11 @@ import {
   getModelDetailStats as _getModelDetailStats,
   getModelDailyTrends as _getModelDailyTrends,
   getDistinctModelSlugs as _getDistinctModelSlugs,
+  getSourceDetailStats as _getSourceDetailStats,
+  getSourceDailyTrends as _getSourceDailyTrends,
+  getSourceModelBreakdown as _getSourceModelBreakdown,
+  getSourceComparisonTrends as _getSourceComparisonTrends,
+  getDistinctSources as _getDistinctSources,
 } from "./stats";
 
 // ─── Cache tags (single source of truth) ────────────────────────────────────
@@ -48,6 +53,11 @@ export const TAG = {
   modelDetail: "model-detail",
   modelDailyTrends: "model-daily-trends",
   modelSlugs: "model-slugs",
+  sourceDetail: "source-detail",
+  sourceDailyTrends: "source-daily-trends",
+  sourceModels: "source-models",
+  sourceComparison: "source-comparison",
+  sourceSlugs: "source-slugs",
 } as const;
 
 const ALL_TAGS = Object.values(TAG);
@@ -186,4 +196,36 @@ export const getDistinctModelSlugsCached = unstable_cache(
   _getDistinctModelSlugs,
   [TAG.modelSlugs],
   { revalidate: 3600, tags: [TAG.modelSlugs] }
+);
+
+// ─── Per-source stats (for /stats/tools) ─────────────────────────────────
+
+export const getSourceDetailStatsCached = unstable_cache(
+  _getSourceDetailStats,
+  [TAG.sourceDetail],
+  { revalidate: 3600, tags: [TAG.sourceDetail] }
+);
+
+export const getSourceDailyTrendsCached = unstable_cache(
+  _getSourceDailyTrends,
+  [TAG.sourceDailyTrends],
+  { revalidate: 3600, tags: [TAG.sourceDailyTrends] }
+);
+
+export const getSourceModelBreakdownCached = unstable_cache(
+  _getSourceModelBreakdown,
+  [TAG.sourceModels],
+  { revalidate: 3600, tags: [TAG.sourceModels] }
+);
+
+export const getSourceComparisonTrendsCached = unstable_cache(
+  _getSourceComparisonTrends,
+  [TAG.sourceComparison],
+  { revalidate: 3600, tags: [TAG.sourceComparison] }
+);
+
+export const getDistinctSourcesCached = unstable_cache(
+  _getDistinctSources,
+  [TAG.sourceSlugs],
+  { revalidate: 3600, tags: [TAG.sourceSlugs] }
 );
