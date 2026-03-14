@@ -17,6 +17,7 @@ import { StatsCta } from "@/components/stats/StatsCta";
 import { StatsNav } from "@/components/stats/StatsNav";
 import { friendlyModelName } from "@/lib/chart-utils";
 import { getModelSeoMeta } from "@/lib/models";
+import { seoAlternates } from "@/lib/seo";
 import { getTranslations } from "next-intl/server";
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
@@ -89,7 +90,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    alternates: { canonical: `${BASE_URL}/stats/models/${slug}` },
+    alternates: seoAlternates(`/stats/models/${slug}`),
     openGraph: {
       title: `${displayName} Usage Statistics — ${users} Developers, ${cost}+ Spend`,
       description,

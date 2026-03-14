@@ -3,14 +3,16 @@ import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { Header } from "@/components/layout/Header";
 import { logEntries, type LogEntry } from "@/lib/log-entries";
+import { seoAlternates } from "@/lib/seo";
+import { env } from "@/lib/env";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://clawdboard.ai";
+const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
 
 export const metadata: Metadata = {
   title: "Changelog — What's New on clawdboard",
   description:
     "All the latest features, fixes, and improvements to clawdboard — the AI coding usage leaderboard. Stay up to date with what's changed.",
-  alternates: { canonical: `${BASE_URL}/log` },
+  alternates: seoAlternates("/log"),
 };
 
 const TYPE_CONFIG = {

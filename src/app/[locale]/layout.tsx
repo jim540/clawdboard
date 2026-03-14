@@ -26,11 +26,6 @@ const firaCode = Fira_Code({
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
 
-/** Build a locale URL respecting localePrefix: "as-needed" (no prefix for en) */
-function localeUrl(loc: string, path = "") {
-  return loc === "en" ? `${BASE_URL}${path}` : `${BASE_URL}/${loc}${path}`;
-}
-
 const OG_LOCALE_MAP: Record<string, string> = {
   en: "en_US",
   fr: "fr_FR",

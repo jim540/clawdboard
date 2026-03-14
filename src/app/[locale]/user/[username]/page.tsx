@@ -34,6 +34,7 @@ import { BadgeUnlockModal } from "@/components/profile/BadgeUnlockModal";
 import { StreakCelebration } from "@/components/profile/StreakCelebration";
 import { TeamNudge } from "@/components/profile/TeamNudge";
 import { env } from "@/lib/env";
+import { seoAlternates } from "@/lib/seo";
 import { auth } from "@/lib/auth";
 import { getUserTeams, getUserPublicTeams } from "@/lib/db/teams";
 import { getAllRecaps } from "@/lib/db/recaps";
@@ -105,7 +106,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `${BASE_URL}/user/${username}` },
+    alternates: seoAlternates(`/user/${username}`),
     openGraph: {
       title: `${title} | clawdboard`,
       description,

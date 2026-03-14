@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { env } from "@/lib/env";
+import { seoAlternates } from "@/lib/seo";
 import { Header } from "@/components/layout/Header";
 import {
   getCommunityStatsCached,
@@ -32,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `AI Coding Usage Statistics — Live Data from ${userCount}+ Developers`,
     description: `How much does AI coding cost? Real data from ${userCount}+ developers using Claude Code, OpenCode & Codex CLI: $${cost}+ total spend, model breakdowns, daily usage trends, and community growth. Updated hourly from opt-in usage logs.`,
-    alternates: { canonical: `${BASE_URL}/stats` },
+    alternates: seoAlternates("/stats"),
     openGraph: {
       title: `AI Coding Usage Statistics — ${userCount}+ Developers`,
       description: `Live usage data: $${cost}+ total spend, ${formatNumber(stats.totalTokens)}+ tokens across ${userCount} developers.`,

@@ -17,6 +17,7 @@ import { StatsCta } from "@/components/stats/StatsCta";
 import { StatsNav } from "@/components/stats/StatsNav";
 import { friendlyModelName } from "@/lib/chart-utils";
 import { type ToolMeta, getToolMeta, getActiveTools, toolNameList } from "@/lib/tools";
+import { seoAlternates } from "@/lib/seo";
 import { getTranslations } from "next-intl/server";
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
@@ -73,7 +74,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `${BASE_URL}/stats/tools` },
+    alternates: seoAlternates("/stats/tools"),
     openGraph: {
       title: `AI Coding Tool Comparison — Real Usage Data from ${totalUsers}+ Developers`,
       description,

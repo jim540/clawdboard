@@ -36,6 +36,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { safeHostname, buildInviteUrl } from "@/lib/url";
 import { PERIOD_COOKIE, parsePeriodCookie } from "@/lib/period-cookie";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { seoAlternates } from "@/lib/seo";
 import { getTranslations } from "next-intl/server";
 
 const BASE_URL = env.NEXT_PUBLIC_BASE_URL;
@@ -73,7 +74,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `${BASE_URL}/team/${slug}` },
+    alternates: seoAlternates(`/team/${slug}`),
     openGraph: {
       title: `${title} | clawdboard`,
       description,
